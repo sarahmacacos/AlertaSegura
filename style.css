@@ -1,0 +1,239 @@
+style.css:root{
+  --azul:#0A2540; --amarelo:#FFC300; --branco:#FFFFFF; --cinza:#94a3b8; --bg:#0b1d31; --card:#112a48;
+  --ring:rgba(255,195,0,.4);
+  --green:#1bda72; --yellow:#ffd166; --red:#ff4d4d;
+  --display-w: 390px; /* largura iPhone 12/13/14 */
+  --display-h: 780px; /* altura visível do mock */
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background: radial-gradient(800px 400px at 15% 20%, #0f2542 0%, transparent 60%) , #071524;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color: var(--branco);
+  display:grid;
+  place-items:center;
+  padding:24px;
+}
+
+/* --------- PHONE FRAME (moldura preta estilo iPhone) --------- */
+.phone-wrap{
+  position:relative;
+  width: calc(var(--display-w) + 24px);
+  height: calc(var(--display-h) + 24px);
+  border-radius: 38px;
+  background: #000;
+  box-shadow:
+    0 30px 60px rgba(0,0,0,.45),
+    inset 0 0 0 2px rgba(255,255,255,.06);
+  padding:12px;
+}
+.phone-bezel{
+  width:100%;
+  height:100%;
+  border-radius: 30px;
+  background: #000;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.04);
+  position:relative;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+/* Botões laterais */
+.btn-side{
+  position:absolute; left:-3px; width:3px; background:#111; border-radius:2px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+}
+.btn-vol-up{ top:110px; height:46px;}
+.btn-vol-down{ top:168px; height:46px;}
+.btn-power{ right:-3px; left:auto; top:140px; height:70px;}
+
+/* Notch (rounded) */
+.notch{
+  position:absolute; top:8px; left:50%; transform:translateX(-50%);
+  width:100px; height:25px; background:#000; border-radius:14px;
+  z-index:10; box-shadow: 0 2px 6px rgba(0,0,0,.4);
+}
+.cam{position:absolute; top:16px; left:50%; transform:translateX(46px); width:8px; height:8px; background:#111; border-radius:50%;}
+.spk{position:absolute; top:16px; left:50%; transform:translateX(-20px); width:56px; height:6px; background:#111; border-radius:6px;}
+
+/* DISPLAY */
+.display{
+  position:relative;
+  width: var(--display-w);
+  height: var(--display-h);
+  background: linear-gradient(180deg, #0c2138, #0a1d31);
+  border-radius: 26px;
+  overflow:hidden;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+}
+
+/* App Shell */
+.app{
+  display:flex; flex-direction:column;
+  height:100%; width:100%;
+}
+.app-header{
+  position:sticky; top:0;
+  background: rgba(10,37,64,.85);
+  backdrop-filter: blur(6px);
+  border-bottom:1px solid rgba(255,255,255,.06);
+  /* espaço extra para não ser coberto pelo notch */
+  padding:43px 14px 12px;
+  z-index:5;
+}
+.brand{
+  display:flex; align-items:center; gap:20zpx;
+  font-weight:700; letter-spacing:.3px;
+  position:relative; /* allow absolute centering of text */
+}
+.brand-text{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  text-align:center;
+  line-height:1,5;
+}
+.shield{
+  width:22px; height:22px; border:2px solid var(--amarelo); border-radius:8px; position:relative;
+}
+.shield:after{content:""; position:absolute; inset:6px; background:var(--amarelo); border-radius:50%;}
+.subtitle{color:var(--cinza); font-size:12px}
+
+/* ---------------------------------------------------- */
+/* --- NOVOS ESTILOS PARA ABAS (BOTÕES DE PÁGINA) --- */
+/* ---------------------------------------------------- */
+.app-tabs {
+  display: flex;
+  background: rgba(10,37,64,.95); /* Mesmo fundo do header, mas menos transparente */
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  padding: 0 10px;
+  z-index: 4; /* Abaixo do header */
+}
+.tab-btn {
+  flex: 1; /* Ocupa espaço igual */
+  background: none;
+  border: none;
+  color: var(--cinza);
+  padding: 12px 5px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+.tab-btn:hover {
+  color: var(--branco);
+}
+.tab-btn.active {
+  color: var(--amarelo);
+  border-bottom-color: var(--amarelo);
+}
+
+/* Container do conteúdo principal */
+.app-content {
+  flex: 1; /* Ocupa todo o espaço restante */
+  position: relative;
+  overflow: hidden; /* Esconde páginas inativas */
+}
+
+/* Estilo da "Página" */
+.app-page {
+  /* Oculta por padrão */
+  display: none; 
+  
+  /* Permite rolagem interna em cada página */
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  
+  /* Padding que antes era do .app-scroll */
+  padding: 12px 14px 16px;
+}
+
+/* Mostra a página ativa */
+.app-page.active {
+  display: block; 
+}
+
+/* --- FIM DOS NOVOS ESTILOS --- */
+
+
+/* Center main title and muted text inside the scrollable content */
+.app-page h1,
+.app-page .muted{
+  text-align: center;
+}
+
+/* Cards e textos */
+.pill{display:inline-block;background:rgba(255,195,0,.14);color:#ffe082;padding:4px 8px;border-radius:10px;font-size:12px}
+h1{font-size:22px; line-height:1.15; margin:10px 0 6px}
+.muted{color:#cfe1ffb3; font-size:14px}
+.hero-card{margin-top:12px; background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:10px}
+.grid{display:grid; gap:10px}
+.grid-2{grid-template-columns:1fr}
+.btn{display:block; background:var(--amarelo); color:#111; font-weight:800; text-align:center; padding:12px; border-radius:14px; font-size:15px; border:none}
+
+/* Mapa topo (risco) */
+.mapmock{height:300px; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,.08); position:relative}
+@media (max-height:760px){ .mapmock{height:260px} }
+.legend{
+  position:absolute; right:10px; bottom:10px; background:rgba(10,37,64,.9);
+  border:1px solid rgba(255,255,255,.1); backdrop-filter:blur(4px); padding:8px 10px; border-radius:10px; font-size:12px; z-index:3
+}
+.legend div{display:flex; align-items:center; gap:6px; margin:2px 0}
+.dot{width:10px; height:10px; border-radius:50%}
+.g{background:var(--green)} .y{background:var(--yellow)} .r{background:var(--red)}
+
+.marker-icon-hero{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.85); box-shadow:0 1px 3px rgba(0,0,0,.5); margin-left:-7px;margin-top:-7px}
+.marker-icon-hero.g{background:var(--green)} .marker-icon-hero.y{background:var(--yellow)} .marker-icon-hero.r{background:var(--red)}
+.marker-cluster-small{ background-color: rgba(255,209,102,.6) }
+.marker-cluster-medium{ background-color: rgba(255,77,77,.6) }
+.marker-cluster-large{ background-color: rgba(255,77,77,.8) }
+.marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{ background:rgba(0,0,0,.32); color:#fff; font-weight:700 }
+
+/* Bloco de ações estilo app */
+.phone-panel{display:flex; flex-direction:column; gap:10px}
+.field{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); padding:10px 12px; border-radius:12px; color:#e5e7eb; font-size:14px}
+
+/* Seções */
+.section{margin-top:14px; border-top:1px solid rgba(255,255,255,.06); padding-top:14px}
+.cards{display:grid; grid-template-columns:1fr; gap:10px}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:12px}
+.card h3{margin:0 0 6px; font-size:16px}
+
+/* Mapa demo */
+#mapa{height:300px; width:100%; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.08)}
+@media (max-height:760px){ #mapa{height:260px} }
+.map-demo-container{ background:#0e2643; border:1px solid rgba(255,255,255,.08); border-radius:14px; overflow:hidden }
+.address-selector{ padding:12px; background:#102a4b; border-bottom:1px solid rgba(255,255,255,.06)}
+.address-selector h3{margin:0 0 6px; font-size:11px; color:#9fb4cc; letter-spacing:.08em}
+.address-input{
+  width:100%; border:1px solid rgba(255,255,255,.16); border-radius:10px; padding:10px 38px 10px 12px;
+  background:rgba(255,255,255,.06);
+  color:#e6f0ff; font-size:14px; font-weight:500; appearance:none;
+  background-image:url('data:image/svg+xml;utf8,<svg fill="white" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat:no-repeat; background-position:right 10px center; background-size:20px; cursor:pointer;
+}
+/* Melhor contraste das opções do dropdown em tema escuro */
+.address-input option{
+  background-color: #0e2643; /* combina com o tom do card */
+  color: #e6f0ff; /* texto claro */
+}
+/* Hover / opção selecionada no dropdown: usar destaque legível */
+.address-input option:hover,
+.address-input option:focus,
+.address-input option:checked{
+  background-color: #214a76; /* tom um pouco mais claro para destacar */
+  color: #ffffff; /* texto branco para máximo contraste */
+}
+.address-details{font-size:12px; color:#cfe1ffb3; margin-top:8px}
+.map-note{padding:10px 12px; font-size:11px; color:#cfe1ff99; background:#0c2138}
+
+/* Footer mini */
+.footer{color:#9fb4cc; font-size:11px; text-align:center; padding:10px 0}
+:focus-visible{outline:2px solid var(--ring); outline-offset:2px; border-radius:10px}

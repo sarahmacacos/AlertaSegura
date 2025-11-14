@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>AlertaSegura — Mobile App Mock</title>
+  <meta name="description" content="App AlertaSegura mobile: mapa de risco, rota segura, alertas anônimos."/>
+  
+  <!-- biblioteca do mapa (leaflet) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+  <style>
+    :root{
+      --azul:#0A2540; --amarelo:#FFC300; --branco:#FFFFFF; --cinza:#94a3b8; --bg:#0b1d31; --card:#112a48;
+      --ring:rgba(255,195,0,.4);
+      --green:#ff6600; --yellow:#ffbb00; --red:#cc0000;
+      --display-w: 320px;
+      --display-h: 640px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background: radial-gradient(800px 400px at 15% 20%, #0f2542 0%, transparent 60%) , #071524;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--branco);
+      display:grid;
+      place-items:center;
+      padding:12px;
+      min-height: 100vh;
+    }
+
+    /* moldura do celular (ficou daora) */
+    .phone-wrap{
+      position:relative;
+      width: calc(var(--display-w) + 24px);
+      height: calc(var(--display-h) + 24px);
+      border-radius: 38px;
+      background: #000;
+      box-shadow:
+        0 30px 60px rgba(0,0,0,.45),
+        inset 0 0 0 2px rgba(255,255,255,.06);
+      padding:12px;
+    }
+    .phone-bezel{
+      width:100%;
+      height:100%;
+      border-radius: 30px;
+      background: #000;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.04);
+      position:relative;
+      overflow:hidden;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    /* botoes de volume e power na lateral kk */
+    .btn-side{
+      position:absolute; left:-3px; width:3px; background:#111; border-radius:2px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+    }
+    .btn-vol-up{ top:110px; height:46px;}
+    .btn-vol-down{ top:168px; height:46px;}
+    .btn-power{ right:-3px; left:auto; top:140px; height:70px;}
+
+    /* aquele buraquinho de cima tipo iphone */
+    .notch{
+      position:absolute; top:8px; left:50%; transform:translateX(-50%);
+      width:100px; height:25px; background:#000; border-radius:14px;
+      z-index:10; box-shadow: 0 2px 6px rgba(0,0,0,.4);
+    }
+    .cam{position:absolute; top:16px; left:50%; transform:translateX(46px); width:8px; height:8px; background:#111; border-radius:50%;}
+    .spk{position:absolute; top:16px; left:50%; transform:translateX(-20px); width:56px; height:6px; background:#111; border-radius:6px;}
+
+    /* tela do app onde rola tudo */
+    .display{
+      position:relative;
+      width: var(--display-w);
+      height: var(--display-h);
+      background: linear-gradient(180deg, #0c2138, #0a1d31);
+      border-radius: 26px;
+      overflow:hidden;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+    }
+
+    /* estrutura basica do app */
+    h1, h3 {
+      text-align: center;
+    }
+    .app{
+      display:flex; flex-direction:column;
+      height:100%; width:100%;
+    }
+    .app-header{
+      position:sticky; top:0;
+      background: rgba(10,37,64,.85);
+      backdrop-filter: blur(6px);
+      border-bottom:1px solid rgba(255,255,255,.06);
+      /* espaço extra para não ser coberto pelo notch */
+      padding:43px 14px 12px;
+      z-index:5;
+    }
+    .brand{
+      display:flex; align-items:center; gap:20zpx;
+      font-weight:700; letter-spacing:.3px;
+      position:relative; /* allow absolute centering of text */
+    }
+    .brand-text{
+      position:absolute;
+      left:50%;
+      transform:translateX(-50%);
+      text-align:center;
+      line-height:1,5;
+    }
+    .shield{
+      width:22px; height:22px; border:2px solid var(--amarelo); border-radius:8px; position:relative; cursor:pointer;
+    }
+    .shield:after{content:""; position:absolute; inset:6px; background:var(--amarelo); border-radius:50%;}
+    .subtitle{color:var(--cinza); font-size:12px}
+
+    .app-scroll{
+      flex:1; overflow:auto; scroll-behavior:smooth;
+      padding:12px 14px 16px;
+    }
+
+    /* Center main title and muted text inside the scrollable content */
+    .app-scroll h1,
+    .app-scroll .muted{
+      text-align: center;
+    }
+
+    /* Cards e textos */
+    .pill{display:inline-block;background:rgba(255,195,0,.14);color:#ffe082;padding:4px 8px;border-radius:10px;font-size:12px}
+    h1{font-size:22px; line-height:1.15; margin:10px 0 6px}
+    .muted{color:#cfe1ffb3; font-size:14px}
+    .hero-card{margin-top:12px; background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:10px}
+    .grid{display:grid; gap:10px}
+    .grid-2{grid-template-columns:1fr}
+    .btn{display:block; background:var(--amarelo); color:#111; font-weight:800; text-align:center; padding:12px; border-radius:14px; font-size:15px; border:none; cursor:pointer;}
+    .btn:disabled{opacity:0.6;cursor:not-allowed}
+    .btn.community{background:linear-gradient(135deg,var(--amarelo),#ffaa00);}
+    
+    /* Fonte mais suave para botões amarelos (exceto enviar da comunidade) */
+    .btn:not(.chat-input button){
+      font-family: "Poppins", "Helvetica Neue", Arial, sans-serif;
+      font-weight: 700;
+    }
+    
+    /* Botões dos planos - tamanhos menores */
+    .plan-details .btn {
+      font-size: 12px;
+      padding: 8px 12px;
+      font-weight: 600;
+    }
+    
+    .btn-outline {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.3);
+      color: var(--cinza);
+    }
+
+    /* Mapa topo (risco) */
+    .mapmock{height:300px; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,.08); position:relative}
+    @media (max-height:760px){ .mapmock{height:260px} }
+    .legend{
+      position:absolute;
+      right:8px;
+      bottom:8px;
+      background:rgba(10,37,64,.94);
+      border:1px solid rgba(255,255,255,.06);
+      backdrop-filter:blur(6px);
+      padding:4px 6px;
+      border-radius:8px;
+      font-size:10px;
+      z-index:1100;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      align-items:flex-start;
+      max-width:120px;
+      box-shadow:0 6px 14px rgba(0,0,0,.45);
+    }
+
+    .legend div{display:flex; align-items:center; gap:6px; margin:1px 0; white-space:nowrap; color:var(--branco)}
+    .dot{width:8px; height:8px; border-radius:50%}
+    .g{background:var(--green)} .y{background:var(--yellow)} .r{background:var(--red)}
+
+    @media (max-height:760px){
+      .legend{right:6px; bottom:6px; padding:3px 5px; font-size:9px; max-width:110px}
+    }
+    .dot{width:6px; height:6px}
+
+    .marker-icon-hero{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.85); box-shadow:0 1px 3px rgba(0,0,0,.5); margin-left:-7px;margin-top:-7px}
+    .marker-icon-hero.g{background:var(--green)} .marker-icon-hero.y{background:var(--yellow)} .marker-icon-hero.r{background:var(--red)}
+    .marker-cluster-small{ background-color: rgba(255,209,102,.6) }
+    .marker-cluster-medium{ background-color: rgba(255,77,77,.6) }
+    .marker-cluster-large{ background-color: rgba(255,77,77,.8) }
+    .marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{ background:rgba(0,0,0,.32); color:#fff; font-weight:700 }
+
+    /* painel de acoes rapidas do app */
+    .phone-panel{display:flex; flex-direction:column; gap:10px}
+    .field{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); padding:10px 12px; border-radius:12px; color:#e5e7eb; font-size:14px; cursor:pointer; transition:all 0.3s;}
+    .field:hover{background:rgba(255,255,255,.08);}
+    .field.guide{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08);}
+
+    /* secoes separadinhas */
+    .section{margin-top:14px; border-top:1px solid rgba(255,255,255,.06); padding-top:14px}
+    .cards{display:grid; grid-template-columns:1fr; gap:10px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:12px}
+    .card h3{margin:0 0 6px; font-size:16px; text-align:center}
+
+    /* chat da comunidade tipo whats */
+    .community-chat{
+      background:linear-gradient(180deg,rgba(255,195,0,.08),rgba(255,195,0,.04)); 
+      border:1px solid rgba(255,195,0,.3); 
+      border-radius:14px; 
+      padding:12px;
+      margin-top:12px;
+    }
+    .chat-messages{
+      max-height:200px; 
+      overflow-y:auto; 
+      background:rgba(0,0,0,.2); 
+      border-radius:10px; 
+      padding:10px; 
+      margin-bottom:10px;
+    }
+    .chat-msg{
+      background:rgba(255,255,255,.06); 
+      border-radius:8px; 
+      padding:8px; 
+      margin-bottom:8px; 
+      font-size:13px;
+    }
+    .chat-msg .user{
+      color:var(--amarelo); 
+      font-weight:600; 
+      margin-bottom:4px;
+    }
+    .chat-input{
+      display:flex; 
+      gap:8px;
+    }
+    .chat-input input{
+      flex:1; 
+      background:rgba(255,255,255,.06); 
+      border:1px solid rgba(255,255,255,.1); 
+      border-radius:8px; 
+      padding:8px; 
+      color:var(--branco); 
+      font-size:13px;
+    }
+    .chat-input button{
+      background:var(--amarelo); 
+      color:var(--azul); 
+      border:none; 
+      border-radius:8px; 
+      padding:8px 16px; 
+      font-weight:600; 
+      cursor:pointer;
+    }
+
+    /* Mapa demo */
+    #mapa{height:300px; width:100%; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.08)}
+    @media (max-height:760px){ #mapa{height:260px} }
+
+    /* Novo mapa de rota segura (oculto por padrão) */
+    .route-section{ display:none; }
+    .route-section.open{ display:block; }
+    #route-map{ height:320px; width:100%; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.08) }
+    @media (max-height:760px){ #route-map{ height:260px } }
+
+    .map-demo-container{ background:#0e2643; border:1px solid rgba(255,255,255,.08); border-radius:14px; overflow:hidden }
+    .address-selector{ padding:12px; background:#102a4b; border-bottom:1px solid rgba(255,255,255,.06)}
+    .address-selector h3{margin:0 0 6px; font-size:11px; color:#9fb4cc; letter-spacing:.08em}
+    .address-input{
+      width:100%; border:1px solid rgba(255,255,255,.16); border-radius:10px; padding:10px 38px 10px 12px;
+      background:rgba(255,255,255,.06);
+      color:#e6f0ff; font-size:14px; font-weight:500; appearance:none;
+      background-image:url('data:image/svg+xml;utf8,<svg fill="white" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+      background-repeat:no-repeat; background-position:right 10px center; background-size:20px; cursor:pointer;
+    }
+    /* Melhor contraste das opções do dropdown em tema escuro */
+    .address-input option{
+      background-color: #0e2643; /* combina com o tom do card */
+      color: #e6f0ff; /* texto claro */
+    }
+    /* quando passa o mouse fica destacado */
+    .address-input option:hover,
+    .address-input option:focus,
+    .address-input option:checked{
+      background-color: #214a76; /* tom um pouco mais claro para destacar */
+      color: #ffffff; /* texto branco para máximo contraste */
+    }
+    .address-details{font-size:12px; color:#cfe1ffb3; margin-top:8px}
+    .map-note{
+      padding:14px 16px; 
+      font-size:14px; 
+      line-height:1.5;
+      color:#e6f0ff; 
+      background:#0c2138
+    }
+    .map-note strong {
+      font-size:15px;
+      color:#fff;
+    }
+
+    /* rodapezinho */
+    .footer{color:#9fb4cc; font-size:11px; text-align:center; padding:10px 0}
+    :focus-visible{outline:2px solid var(--ring); outline-offset:2px; border-radius:10px}
+
+    /* esconder barra de rolagem */
+    ::-webkit-scrollbar {
+      width: 0px;
+      height: 0px;
+    }
+    
+    /* pra funcionar no firefox tbm */
+    * {
+      scrollbar-width: none;
+    }
+
+    /* --- Medidor de distância (painel) --- */
+    .measure-control{
+      background: rgba(10,37,64,.92);
+      border: 1px solid rgba(255,255,255,.12);
+      color: #e6f0ff;
+      font-size: 12px;
+      line-height: 1.4;
+      padding: 8px 10px;
+      border-radius: 10px;
+      box-shadow: 0 6px 16px rgba(0,0,0,.25);
+    }
+    .measure-control b{color:#fff}
+    .measure-row{display:flex; gap:8px; align-items:center; margin-top:6px}
+    .measure-btn{
+      background: var(--amarelo);
+      color:#0A2540;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .measure-hint{opacity:.85}
+  </style>
+</head>
+<body>
+
+  <div class="phone-wrap">
+    <div class="btn-side btn-vol-up"></div>
+    <div class="btn-side btn-vol-down"></div>
+    <div class="btn-side btn-power" style="left:auto;"></div>
+
+    <div class="phone-bezel">
+      <div class="notch"></div>
+      <div class="cam"></div>
+      <div class="spk"></div>
+
+      <div class="display">
+        <div class="app">
+          <!-- cabecalho -->
+          <div class="app-header">
+            <div class="brand">
+              <span class="shield" aria-hidden="true"></span>
+              <div class="brand-text">
+                AlertaSegura
+                <div class="subtitle">Londrina</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- parte que rola pra baixo -->
+          <div class="app-scroll">
+            <!-- Hero -->
+            <span class="pill">Mobile App • Mock</span>
+            <h1>Segurança começa com informação</h1>
+            <p class="muted">Mapa de <b>risco</b>, <b>conexão comunitária</b>, <b>rota segura</b> e <b>emergência</b>.</p>
+
+            <div class="hero-card">
+              <div class="grid grid-2">
+                <!-- mapa do topo -->
+                <div id="map-hero" class="mapmock" aria-label="Mapa de risco com clusters">
+                  <div class="legend">
+                    <div><span class="dot g"></span> Área segura</div>
+                    <div><span class="dot y"></span> Risco médio</div>
+                    <div><span class="dot r"></span> Risco alto</div>
+                  </div>
+                </div>
+
+                <!-- botoes rapidos -->
+                <div class="phone-panel" aria-label="Ações rápidas">
+                  <div class="field">📍 Origem: Campus</div>
+                  <div class="field">🏁 Destino: Terminal</div>
+                  <button class="btn" id="btnTraçar">🛣️ Traçar rota segura</button>
+                  <button class="btn" id="btnMapa">📍 Mapa de Agressores</button>
+                  <button class="btn" id="btnAlerta">🚨 Enviar alerta anônimo</button>
+                  <button class="btn community" id="btnComunidade">🗣️Comunidade</button>
+
+                </div>
+              </div>
+            </div>
+
+            <!-- chat da galera -->
+            <div class="section">
+              <h3 style="margin:0 0 8px;font-size:16px;color:var(--branco);"> Comunidade</h3>
+              <p class="muted" style="margin-top:0">Conecte-se com outras mulheres para trajetos mais seguros.</p>
+              
+              <div class="community-chat">
+                <div class="chat-messages" id="chatMessages">
+                  <div class="chat-msg">
+                    <div class="user">Maria S.</div>
+                    <div>Alguém vai sair do campus às 22h hoje? Podemos ir juntas até o terminal?</div>
+                  </div>
+                  <div class="chat-msg">
+                    <div class="user">Ana P.</div>
+                    <div>Eu saio às 22h15! Podemos nos encontrar na biblioteca?!</div>
+                  </div>
+                  <div class="chat-msg">
+                    <div class="user">Júlia R.</div>
+                    <div>Amanhã alguém vai para o centro às 19h? Prefiro não ir sozinha.</div>
+                  </div>
+                </div>
+                <div class="chat-input">
+                  <input type="text" placeholder="Digite sua mensagem..." id="msgInput">
+                  <button onclick="sendMessage()">Enviar</button>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:8px;margin-top:10px;">
+                <button id="btnCreateEvent" class="btn" style="flex:1;font-size:13px;padding:10px;">🗓️ Criar Evento</button>
+                <button id="btnNotifications" class="btn" style="flex:1;font-size:13px;padding:10px;">🔔 Notificações</button>
+              </div>
+
+              <!-- Eventos moved to Notificações modal (removed inline list) -->
+
+              <!-- janelinha de criar evento -->
+              <div class="event-modal" id="eventModal" aria-hidden="true">
+                <div class="card">
+                  <h3 style="margin-top:0">Criar Evento</h3>
+                  <p class="muted" style="margin-top:0;font-size:13px">Manifestações, feriados, encontros — informe data, hora e local.</p>
+                  <div style="margin-top:8px">
+                    <label style="font-size:13px;color:var(--cinza)">Tipo</label>
+                    <select id="event-type" class="address-input" style="width:100%;margin-top:6px;padding:8px;border-radius:8px">
+                      <option value="manifestacao">Manifestações</option>
+                      <option value="feriado">Feriado</option>
+                      <option value="cultural">Evento cultural</option>
+                      <option value="obras">Bloqueio / Obras</option>
+                      <option value="outro">Outro</option>
+                    </select>
+
+                    <label style="font-size:13px;color:var(--cinza);margin-top:8px;display:block">Título</label>
+                    <input id="event-title" type="text" placeholder="Ex: Passeata pelo centro" style="width:100%;margin-top:6px;padding:8px;border-radius:8px" />
+
+                    <div class="event-form-row">
+                      <div class="half">
+                        <label style="font-size:13px;color:var(--cinza);display:block;margin-top:8px">Data</label>
+                        <input id="event-date" type="date" style="width:100%;padding:8px;border-radius:8px;margin-top:6px" />
+                      </div>
+                      <div class="half">
+                        <label style="font-size:13px;color:var(--cinza);display:block;margin-top:8px">Hora</label>
+                        <input id="event-time" type="time" style="width:100%;padding:8px;border-radius:8px;margin-top:6px" />
+                      </div>
+                    </div>
+
+                    <label style="font-size:13px;color:var(--cinza);margin-top:8px;display:block">Bairro / Local</label>
+                    <select id="event-bairro" class="address-input" style="width:100%;margin-top:6px;padding:8px;border-radius:8px">
+                      <!-- opcoes vem do javascript -->
+                    </select>
+
+                    <input id="event-bairro-other" type="text" placeholder="Informe o nome do bairro" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;display:none" />
+                    <div id="event-bairro-error" style="display:none;color:var(--amarelo);font-size:12px;margin-top:6px">Informe o nome do bairro.</div>
+
+                    <label style="font-size:13px;color:var(--cinza);margin-top:8px;display:block">Rua / Local (obrigatório)</label>
+                    <input id="event-street" type="text" placeholder="Ex: Rua das Flores, 123" style="width:100%;margin-top:6px;padding:8px;border-radius:8px" />
+                    <div id="event-street-error" style="display:none;color:var(--amarelo);font-size:12px;margin-top:6px">Informe a rua / local.</div>
+
+                    <label style="font-size:13px;color:var(--cinza);margin-top:8px;display:block">Descrição (opcional)</label>
+                    <textarea id="event-desc" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;min-height:72px"></textarea>
+
+                    <div style="display:flex;gap:8px;margin-top:12px;">
+                      <button id="saveEventBtn" class="btn" style="flex:1;padding:8px">Salvar</button>
+                      <button id="cancelEventBtn" class="btn btn-outline" style="flex:1;padding:8px">Cancelar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+              <!-- popup de notificacoes -->
+              <div class="notify-modal" id="notifyModal" aria-hidden="true">
+                <div class="card" role="dialog" aria-modal="true" aria-labelledby="notifyTitle">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                    <h3 id="notifyTitle" style="margin:0">Notificações</h3>
+                    <button id="closeNotifyBtn" class="btn btn-outline" style="padding:6px 10px;font-size:13px">Fechar</button>
+                  </div>
+                  <div id="notify-list" style="max-height:360px;overflow:auto;padding-top:6px"></div>
+                </div>
+              </div>
+
+              <!-- dicas de seguranca -->
+            <section id="guias" class="section">
+              <h3 style="margin:0 0 8px;font-size:16px">Guia de Segurança</h3>
+              <p class="muted" style="margin-top:0">Informações essenciais para sua proteção.</p>
+              
+              <div class="cards">
+                <div class="card">
+                  <h3>Prevenção</h3>
+                  <p class="muted" style="font-size:13px;">
+                    • Evite fones de ouvido à noite<br>
+                    • Mantenha celular carregado<br>
+                    • Compartilhe localização com confiáveis<br>
+                    • Prefira caminhos iluminados
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Autodefesa Básica</h3>
+                  <p class="muted" style="font-size:13px;">
+                    • Grite e faça barulho<br>
+                    • Mire em pontos sensíveis<br>
+                    • Use objetos como defesa<br>
+                    • Corra para locais movimentados
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Primeiros Socorros</h3>
+                  <p class="muted" style="font-size:13px;">
+                    • Procure atendimento médico imediato<br>
+                    • Não tome banho antes do exame<br>
+                    • Guarde roupas em saco de papel<br>
+                    • Registre boletim de ocorrência
+                  </p>
+                </div>
+              </div>
+            </section>
+            <!-- mapa de agressores -->
+            <div class="section">
+              <h3 style="margin:0 0 8px;font-size:16px">Mapa de agressores sexuais condenados </h3>
+              <p class="muted" style="margin-top:0">Selecione um bairro para navegar.</p>
+
+              <div class="map-demo-container">
+                <div class="address-selector">
+                  <h3>SELECIONAR BAIRRO OU REGIÃO</h3>
+                  <select id="bairro-select" class="address-input">
+                    <option value="-23.318,-51.175" data-address="Piza, Londrina, PR">Piza</option>
+                    <option value="-23.318,-51.175" data-address="Perobinha, Londrina, PR">Perobinha</option>
+                    <option value="-23.318,-51.175" data-address="Cilo 3, Londrina, PR">Cilo 3</option>
+                    <option value="-23.318,-51.175" data-address="Lindóia, Londrina, PR">Lindóia</option>
+                    <option value="-23.318,-51.175" data-address="Royal, Londrina, PR">Royal</option>
+                    <option value="-23.318,-51.175" data-address="Abussafe, Londrina, PR">Abussafe</option>
+                    <option value="-23.318,-51.175" data-address="Pioneiros, Londrina, PR">Pioneiros</option>
+                    <option value="-23.318,-51.175" data-address="Alpes, Londrina, PR">Alpes</option>
+                    <option value="-23.318,-51.175" data-address="Columbia, Londrina, PR">Columbia</option>
+                    <option value="-23.318,-51.175" data-address="Leonor, Londrina, PR">Leonor</option>
+                    <option value="-23.318,-51.175" data-address="Tókio, Londrina, PR">Tókio</option>
+                    <option value="-23.318,-51.175" data-address="Centro, Londrina, PR">Centro</option>
+                    <option value="-23.318,-51.175" data-address="São Miguel, Londrina, PR">São Miguel</option>
+                    <option value="-23.318,-51.175" data-address="Vivi Xavier, Londrina, PR">Vivi Xavier</option>
+                    <option value="-23.318,-51.175" data-address="Vista Bela, Londrina, PR">Vista Bela</option>
+                    <option value="-23.318,-51.175" data-address="Califórnia, Londrina, PR">Califórnia</option>
+                    <option value="-23.318,-51.175" data-address="Cafezal, Londrina, PR">Cafezal</option>
+                    <option value="-23.318,-51.175" data-address="Ideal, Londrina, PR">Ideal</option>
+                    <option value="-23.318,-51.175" data-address="Parigot, Londrina, PR">Parigot</option>
+                    <option value="-23.318,-51.175" data-address="Primavera, Londrina, PR">Primavera</option>
+                    <option value="-23.318,-51.175" data-address="Aeroporto, Londrina, PR">Aeroporto</option>
+                    <option value="-23.318,-51.175" data-address="Tucanos, Londrina, PR">Tucanos</option>
+                    <option value="-23.318,-51.175" data-address="Cinco Conjuntos, Londrina, PR">Cinco Conjuntos</option>
+                    <option value="-23.318,-51.175" data-address="São Lourenço, Londrina, PR">São Lourenço</option>
+                    <option value="-23.318,-51.175" data-address="Cilo 2, Londrina, PR">Cilo 2</option>
+                    <option value="-23.318,-51.175" data-address="Olímpico, Londrina, PR">Olímpico</option>
+                    <option value="-23.318,-51.175" data-address="Cidade Industrial 1, Londrina, PR">Cidade Industrial 1</option>
+                    <option value="-23.318,-51.175" data-address="Industrial 4, Londrina, PR">Industrial 4</option>
+                    <option value="-23.318,-51.175" data-address="Vivendas do Arvoredo, Londrina, PR">Vivendas do Arvoredo</option>
+                    <option value="-23.318,-51.175" data-address="Presidente, Londrina, PR">Presidente</option>
+                    <option value="-23.318,-51.175" data-address="Antares, Londrina, PR">Antares</option>
+                    <option value="-23.318,-51.175" data-address="Terra Nova, Londrina, PR">Terra Nova</option>
+                    <option value="-23.318,-51.175" data-address="São Jorge, Londrina, PR">São Jorge</option>
+                    <option value="-23.318,-51.175" data-address="Nova Esperança, Londrina, PR">Nova Esperança</option>
+                    <option value="-23.318,-51.175" data-address="Alto Primavera, Londrina, PR">Alto Primavera</option>
+                    <option value="-23.318,-51.175" data-address="Ernani, Londrina, PR">Ernani</option>
+                    <option value="-23.318,-51.175" data-address="Coliseu, Londrina, PR">Coliseu</option>
+                    <option value="-23.318,-51.175" data-address="Palhano 1, Londrina, PR">Palhano 1</option>
+                    <option value="-23.318,-51.175" data-address="Palhano 2, Londrina, PR">Palhano 2</option>
+                    <option value="-23.318,-51.175" data-address="Inglaterra, Londrina, PR">Inglaterra</option>
+                    <option value="-23.318,-51.175" data-address="Interlagos, Londrina, PR">Interlagos</option>
+                    <option value="-23.318,-51.175" data-address="Paris, Londrina, PR">Paris</option>
+                    <option value="-23.318,-51.175" data-address="Quebec, Londrina, PR">Quebec</option>
+                    <option value="-23.318,-51.175" data-address="Guanabara, Londrina, PR">Guanabara</option>
+                    <option value="-23.318,-51.175" data-address="Bandeirantes, Londrina, PR">Bandeirantes</option>
+                    <option value="-23.318,-51.175" data-address="Ouro Verde, Londrina, PR">Ouro Verde</option>
+                    <option value="-23.318,-51.175" data-address="Vila Nova, Londrina, PR">Vila Nova</option>
+                    <option value="-23.318,-51.175" data-address="Shangri-lá, Londrina, PR">Shangri-lá</option>
+                    <option value="-23.318,-51.175" data-address="Vila Siam, Londrina, PR">Vila Siam</option>
+                    <option value="-23.318,-51.175" data-address="Vila Casoni, Londrina, PR">Vila Casoni</option>
+                    <option value="-23.318,-51.175" data-address="Petrópolis, Londrina, PR">Petrópolis</option>
+                    <option value="-23.318,-51.175" data-address="Novo Amparo, Londrina, PR">Novo Amparo</option>
+                    <option value="-23.318,-51.175" data-address="Vila Brasil, Londrina, PR">Vila Brasil</option>
+                    <option value="-23.318,-51.175" data-address="Jamile Dequech, Londrina, PR">Jamile Dequech</option>
+                    <option value="-23.318,-51.175" data-address="Higienópolis, Londrina, PR">Higienópolis</option>
+                    <option value="-23.318,-51.175" data-address="Carnascialli, Londrina, PR">Carnascialli</option>
+                    <option value="-23.318,-51.175" data-address="União da Vitória, Londrina, PR">União da Vitória</option>
+                    <option value="-23.318,-51.175" data-address="Sabará, Londrina, PR">Sabará</option>
+                    <option value="-23.318,-51.175" data-address="Fraternidade, Londrina, PR">Fraternidade</option>
+                    <option value="-23.318,-51.175" data-address="Vila Recreio, Londrina, PR">Vila Recreio</option>
+                    <option value="-23.318,-51.175" data-address="Parque das Indústrias Leves, Londrina, PR">Parque das Indústrias Leves</option>
+                    <option value="-23.318,-51.175" data-address="Maria Celina, Londrina, PR">Maria Celina</option>
+                    <option value="-23.318,-51.175" data-address="Ipiranga, Londrina, PR">Ipiranga</option>
+                    <option value="-23.318,-51.175" data-address="Bela Suíça, Londrina, PR">Bela Suíça</option>
+                    <option value="-23.318,-51.175" data-address="Heimtal, Londrina, PR">Heimtal</option>
+                    <option value="-23.318,-51.175" data-address="Milton Gavetti, Londrina, PR">Milton Gavetti</option>
+                    <option value="-23.318,-51.175" data-address="Alto da Boa Vista, Londrina, PR">Alto da Boa Vista</option>
+                    <option value="-23.318,-51.175" data-address="Amália, Londrina, PR">Amália</option>
+                    <option value="-23.318,-51.175" data-address="Gleba, Londrina, PR">Gleba</option>
+                    <option value="-23.318,-51.175" data-address="Jardim Brasília, Londrina, PR">Jardim Brasília</option>
+                    <option value="-23.318,-51.175" data-address="Jardim Inglaterra, Londrina, PR">Jardim Inglaterra</option>
+                    <option value="-23.318,-51.175" data-address="Jardim Champagnat, Londrina, PR">Jardim Champagnat</option>
+                    <option value="-23.318,-51.175" data-address="Jardim João Paz, Londrina, PR">Jardim João Paz</option>
+                    <option value="-23.318,-51.175" data-address="Jardim Santa Rita, Londrina, PR">Jardim Santa Rita</option>
+                    <option value="-23.318,-51.175" data-address="Ouro Branco, Londrina, PR">Ouro Branco</option>
+                    <option value="-23.318,-51.175" data-address="Parque Universidade, Londrina, PR">Parque Universidade</option>
+                    <option value="-23.318,-51.175" data-address="Terra Bonita, Londrina, PR">Terra Bonita</option>
+                    
+                  </select>
+                  <input id="bairro-other-text-map" type="text" placeholder="Especifique o bairro (se Outro)" style="width:100%;margin-top:8px;padding:8px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);color:var(--branco);font-size:13px;display:none" />
+                  <div id="bairro-other-error-map" style="display:none;color:#ffbaba;font-size:12px;margin-top:6px">Por favor informe o nome do bairro.</div>
+                  <div class="address-details">
+                    <p id="points-count">137 Pontos de Interesse Próximos</p>
+                    <p id="address-text">Av. Higienópolis, 123 - Londrina, PR</p>
+                  </div>
+                </div>
+
+                <div id="mapa"></div>
+                <div class="map-note">
+                  <strong style="color:#ff6b6b;">MAPA DE AGRESSORES SEXUAIS</strong>
+                  <p style="margin:8px 0 0;color:var(--cinza);font-size:13px">Pontos mostram locais com registros públicos ou denúncias.</p>
+                  <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+                    <div style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:50%;background:#fff200;display:inline-block"></span><small style="color:var(--cinza)">Denunciado</small></div>
+                    <div style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:50%;background:#ff6600;display:inline-block"></span><small style="color:var(--cinza)">Processado</small></div>
+                    <div style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:50%;background:rgb(255, 0, 0);display:inline-block"></span><small style="color:var(--cinza)">Condenado</small></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- alertas de cada bairro -->
+            <div class="section">
+  <h3 style="margin:0 0 8px;font-size:16px">Alertas enviados por região</h3>
+  <p class="muted" style="margin-top:0">Selecione uma área para ver os alertas anônimos registrados.</p>
+
+  <div class="map-demo-container">
+    <div class="address-selector">
+      <h3>BAIRRO / REGIÃO</h3>
+      <select id="alerta-select" class="address-input">
+        <option value="piza">Piza</option>
+        <option value="perobinha">Perobinha</option>
+        <option value="cilo_3">Cilo 3</option>
+        <option value="lindoia">Lindóia</option>
+        <option value="royal">Royal</option>
+        <option value="abussafe">Abussafe</option>
+        <option value="pioneiros">Pioneiros</option>
+        <option value="alpes">Alpes</option>
+        <option value="columbia">Columbia</option>
+        <option value="leonor">Leonor</option>
+        <option value="tokio">Tókio</option>
+        <option value="centro" selected>Centro</option>
+        <option value="sao_miguel">São Miguel</option>
+        <option value="vivi_xavier">Vivi Xavier</option>
+        <option value="vista_bela">Vista Bela</option>
+        <option value="california">Califórnia</option>
+        <option value="cafezal">Cafezal</option>
+        <option value="ideal">Ideal</option>
+        <option value="parigot">Parigot</option>
+        <option value="primavera">Primavera</option>
+        <option value="aeroporto">Aeroporto</option>
+        <option value="tucanos">Tucanos</option>
+        <option value="cinco_conjuntos">Cinco Conjuntos</option>
+        <option value="sao_lourenco">São Lourenço</option>
+        <option value="cilo_2">Cilo 2</option>
+        <option value="olimpico">Olímpico</option>
+        <option value="cidade_industrial_1">Cidade Industrial 1</option>
+        <option value="industrial_4">Industrial 4</option>
+        <option value="vivendas_do_arvoredo">Vivendas do Arvoredo</option>
+        <option value="presidente">Presidente</option>
+        <option value="antares">Antares</option>
+        <option value="terra_nova">Terra Nova</option>
+        <option value="sao_jorge">São Jorge</option>
+        <option value="nova_esperanca">Nova Esperança</option>
+        <option value="alto_primavera">Alto Primavera</option>
+        <option value="ernani">Ernani</option>
+        <option value="coliseu">Coliseu</option>
+        <option value="palhano_1">Palhano 1</option>
+        <option value="palhano_2">Palhano 2</option>
+        <option value="inglaterra">Inglaterra</option>
+        <option value="interlagos">Interlagos</option>
+        <option value="paris">Paris</option>
+        <option value="quebec">Quebec</option>
+        <option value="guanabara">Guanabara</option>
+        <option value="bandeirantes">Bandeirantes</option>
+        <option value="ouro_verde">Ouro Verde</option>
+        <option value="vila_nova">Vila Nova</option>
+        <option value="shangri_la">Shangri-lá</option>
+        <option value="vila_siam">Vila Siam</option>
+        <option value="vila_casoni">Vila Casoni</option>
+        <option value="petropolis">Petrópolis</option>
+        <option value="novo_amparo">Novo Amparo</option>
+        <option value="vila_brasil">Vila Brasil</option>
+        <option value="jamile_dequech">Jamile Dequech</option>
+        <option value="higienopolis">Higienópolis</option>
+        <option value="carnascialli">Carnascialli</option>
+        <option value="uniao_da_vitoria">União da Vitória</option>
+        <option value="sabara">Sabará</option>
+        <option value="fraternidade">Fraternidade</option>
+        <option value="vila_recreio">Vila Recreio</option>
+        <option value="parque_das_industrias_leves">Parque das Indústrias Leves</option>
+        <option value="maria_celina">Maria Celina</option>
+        <option value="ipiranga">Ipiranga</option>
+        <option value="bela_suica">Bela Suíça</option>
+        <option value="heimtal">Heimtal</option>
+        <option value="milton_gavetti">Milton Gavetti</option>
+        <option value="alto_da_boa_vista">Alto da Boa Vista</option>
+        <option value="amalia">Amália</option>
+        <option value="gleba">Gleba</option>
+        <option value="jardim_brasilia">Jardim Brasília</option>
+        <option value="jardim_inglaterra">Jardim Inglaterra</option>
+        <option value="jardim_champagnat">Jardim Champagnat</option>
+        <option value="jardim_joao_paz">Jardim João Paz</option>
+        <option value="jardim_santa_rita">Jardim Santa Rita</option>
+        <option value="ouro_branco">Ouro Branco</option>
+        <option value="parque_universidade">Parque Universidade</option>
+        <option value="terra_bonita">Terra Bonita</option>
+        <option value="outro">Outro</option>
+      </select>
+      <input id="bairro-other-text" type="text" placeholder="Especifique o bairro (se Outro)" style="width:100%;margin-top:8px;padding:8px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);color:var(--branco);font-size:13px;display:none" />
+      <div id="bairro-other-error" style="display:none;color:#ffbaba;font-size:12px;margin-top:6px">Por favor, informe o nome do bairro.</div>
+      <!-- Formulário rápido para enviar alerta -->
+      <div style="margin-top:10px">
+        <label for="alert-type" style="font-size:13px;color:var(--cinza);display:block;margin-bottom:6px">Enviar novo alerta (anônimo)</label>
+        <select id="alert-type" class="address-input" style="width:100%;padding:8px;border-radius:10px;font-size:13px">
+          <option value="iluminacao">⚠️ Rua mal iluminada</option>
+          <option value="pessoa_suspeita">🚶 Pessoa suspeita</option>
+          <option value="assedio">🚨 Assédio verbal/sexual</option>
+          <option value="tentativa_abordagem">🚨 Tentativa de abordagem</option>
+          <option value="veiculo_suspeito">🚗 Veículo suspeito</option>
+          <option value="perseguicao">🚨 Perseguição</option>
+          <option value="agressao_fisica">🚨 Agressão física</option>
+          <option value="furto_roubo">🚨 Furto/Roubo</option>
+          <option value="exibicionismo">🚨 Exibicionismo/Ato obsceno</option>
+          <option value="movimento_baixo">⚠️ Movimento baixo / via deserta</option>
+          <option value="local_abandonado">⚠️ Local abandonado</option>
+          <option value="som_suspeito">⚠️ Sons suspeitos</option>
+          <option value="camera_quebrada">⚠️ Câmera de segurança quebrada</option>
+          <option value="vegetacao_alta">⚠️ Vegetação alta (dificulta visão)</option>
+          <option value="outro">🔎 Outro</option>
+        </select>
+        <input id="alert-other-text" type="text" placeholder="Descreva o novo tipo de alerta" style="width:100%;margin-top:8px;padding:8px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);color:var(--branco);font-size:13px;display:none" />
+        <input id="alert-street" type="text" placeholder="Rua / Local (obrigatório)" style="width:100%;margin-top:8px;padding:8px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);color:var(--branco);font-size:13px" />
+        <div id="alert-street-error" style="display:none;color:#ffbaba;font-size:12px;margin-top:6px">Por favor, informe o nome da rua/local.</div>
+        <textarea id="alert-desc" placeholder="Descrição (opcional)" style="width:100%;margin-top:8px;padding:8px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);color:var(--branco);font-size:13px;min-height:56px"></textarea>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <label style="font-size:13px;color:var(--cinza);display:flex;align-items:center;gap:6px"><input id="alert-anon" type="checkbox" checked style="transform:scale(1.1)"> Enviar anonimamente</label>
+          <button class="btn" id="sendAlertBtn" style="flex:1;margin-left:auto;padding:8px 10px;font-size:14px">Enviar alerta</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="map-note" id="alertas-list">
+      <p><strong>Centro</strong><br>
+      🚨 3 alertas de “assédio verbal”<br>
+      ⚠️ 1 alerta de “iluminação precária”<br>
+      ⚠️ 2 alertas de “movimento baixo”</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // base de dados dos alertas (inventei uns aleatorios)
+  const alertasData = {
+    centro: [
+      '🚨 3 alertas de assédio verbal',
+      '⚠️ 1 alerta de iluminação precária',
+      '⚠️ 2 alertas de movimento baixo'
+    ],
+    higienopolis: [
+      '🚨 1 tentativa de abordagem registrada',
+      '⚠️ 4 ruas sem iluminação à noite'
+    ],
+    palhano: [
+      '🚨 2 notificações de veículo suspeito',
+      '⚠️ 1 caso de assédio verbal'
+    ],
+    aeroporto: [
+      '⚠️ 3 relatos de via deserta após 22h',
+      '⚠️ 2 alertas de movimento baixo'
+    ],
+    bandeirantes: [
+      '⚠️ 5 alertas de iluminação precária',
+      '🚨 2 relatos de homem suspeito na calçada'
+    ],
+    norte: [
+      '🚨 4 alertas de tentativa de abordagem',
+      '⚠️ 3 alertas de movimento baixo'
+    ],
+    bela_suica: [
+      '⚠️ 1 rua pouco iluminada',
+      '🚶 1 pessoa suspeita observada à noite'
+    ],
+    jardim_quebec: [
+      '⚠️ 2 queixas de iluminação',
+      '🚨 1 tentativa de abordagem em via lateral'
+    ],
+    jardim_shangrila: [
+      '🚨 1 denúncia de assédio verbal',
+      '⚠️ 1 trecho com pouco movimento'
+    ],
+    jardim_morumbi: [
+      '⚠️ 2 relatos de vias escuras',
+      '🚗 1 veículo suspeito circulando tarde'
+    ],
+    jardim_sao_paulo: [
+      '🚨 1 ocorrência de importunação',
+      '⚠️ 1 ponto com iluminação falha'
+    ],
+    jardim_petropolis: [
+      '⚠️ 2 alertas de movimento baixo',
+      '🚨 1 pessoa suspeita perto de ponto de ônibus'
+    ],
+    jardim_nova_esperanca: [
+      '⚠️ 1 via mal iluminada',
+      '🚨 1 relato de assédio verbal'
+    ],
+    perobinha: [
+      '⚠️ 1 ponto com pouco movimento',
+      '🚨 1 relato de abordagem suspeita'
+    ],
+    cidade_industrial: [
+      '⚠️ 3 relatos de vias desertas à noite',
+      '🚗 2 veículos circulando em horário atípico'
+    ],
+    terra_bonita: [
+      '⚠️ 2 alertas de iluminação fraca',
+      '🚨 1 tentativa de abordagem registrada'
+    ],
+    terra_nova: [
+      '⚠️ 2 alertas de iluminação fraca',
+      '🚨 1 tentativa de abordagem registrada'
+    ],
+    vila_casoni: [
+      '⚠️ 1 rua pouco movimentada',
+      '🚨 1 pessoa suspeita vista próximo a comércio'
+    ],
+    vila_brasil: [
+      '⚠️ 1 alerta de iluminação',
+      '🚶 1 pessoa em atitude suspeita'
+    ],
+    jardim_leonor: [
+      '⚠️ 2 pontos com iluminação deficiente',
+      '🚨 1 ocorrência de assédio verbal'
+    ],
+    vivi_xavier: [
+      '⚠️ 1 trecho com movimento baixo',
+      '🚗 1 veículo suspeito observado'
+    ],
+    milton_gavetti: [
+      '⚠️ 1 queixa de iluminação',
+      '🚨 1 relato de abordagem à noite'
+    ],
+    ouro_branco: [
+      '⚠️ 2 relatos de vias escuras',
+      '🚨 1 pessoa suspeita observada'
+    ],
+    heimtal: [
+      '⚠️ 1 alerta de iluminação',
+      '🚨 1 ocorrência de importunação'
+    ],
+    uniao_da_vitoria: [
+      '⚠️ 1 ponto com pouco movimento',
+      '🚨 1 relato de abordagem'
+    ],
+    aquiles_stenghel: [
+      '⚠️ 1 rua mal iluminada',
+      '🚨 1 denúncia de comportamento suspeito'
+    ],
+    jardim_santa_rita: [
+      '⚠️ 2 relatos de iluminação precária',
+      '🚨 1 tentativa de abordagem registrada'
+    ],
+    interlagos: [
+      '⚠️ 1 trecho com movimento baixo',
+      '🚨 1 ocorrência de importunação'
+    ],
+    alto_da_boa_vista: [
+      '⚠️ 1 rua mal iluminada',
+      '🚨 1 alerta de segurança'
+    ],
+    amalia: [
+      '⚠️ 1 relato de via escura'
+    ],
+    gleba: [
+      '⚠️ 1 ponto com baixo movimento'
+    ],
+    jardim_brasilia: [
+      '⚠️ 1 queixa de iluminação',
+      '🚨 1 ocorrência registrada'
+    ],
+    jardim_inglaterra: [
+      '⚠️ 1 alerta de segurança'
+    ],
+    jardim_champagnat: [
+      '⚠️ 1 trecho mal iluminado'
+    ],
+    jardim_joao_paz: [
+      '⚠️ 1 relato de movimento baixo'
+    ],
+    parque_universidade: [
+      '⚠️ 1 via com iluminação precária',
+      '🚨 1 pessoa suspeita observada'
+    ],
+    terra_bonita: [
+      '⚠️ 1 rua mal iluminada',
+      '🚨 1 alerta de segurança'
+    ],
+    piza: [
+      '⚠️ 2 alertas de iluminação precária',
+      '🚨 1 pessoa suspeita observada'
+    ],
+    cilo_3: [
+      '⚠️ 1 via com movimento baixo',
+      '🚨 1 relato de abordagem'
+    ],
+    lindoia: [
+      '⚠️ 2 ruas mal iluminadas',
+      '🚶 1 pessoa suspeita à noite'
+    ],
+    royal: [
+      '⚠️ 1 ponto com iluminação deficiente',
+      '🚨 1 tentativa de abordagem'
+    ],
+    abussafe: [
+      '⚠️ 1 queixa de iluminação',
+      '🚗 1 veículo suspeito circulando'
+    ],
+    pioneiros: [
+      '⚠️ 2 relatos de via deserta',
+      '🚨 1 caso de assédio verbal'
+    ],
+    alpes: [
+      '⚠️ 1 trecho mal iluminado',
+      '🚨 1 alerta de segurança'
+    ],
+    columbia: [
+      '⚠️ 1 rua com pouco movimento',
+      '🚶 1 pessoa suspeita'
+    ],
+    leonor: [
+      '⚠️ 2 alertas de iluminação',
+      '🚨 1 ocorrência registrada'
+    ],
+    tokio: [
+      '⚠️ 1 via mal iluminada',
+      '🚨 1 relato de importunação'
+    ],
+    sao_miguel: [
+      '⚠️ 2 pontos com iluminação precária',
+      '🚨 1 tentativa de abordagem'
+    ],
+    vista_bela: [
+      '⚠️ 1 alerta de movimento baixo',
+      '🚗 1 veículo suspeito'
+    ],
+    california: [
+      '⚠️ 1 rua pouco iluminada',
+      '🚨 1 pessoa suspeita observada'
+    ],
+    cafezal: [
+      '⚠️ 2 relatos de iluminação fraca',
+      '🚨 1 denúncia de assédio'
+    ],
+    ideal: [
+      '⚠️ 1 via com movimento baixo',
+      '🚶 1 comportamento suspeito'
+    ],
+    parigot: [
+      '⚠️ 1 queixa de iluminação',
+      '🚨 1 alerta de segurança'
+    ],
+    primavera: [
+      '⚠️ 2 trechos mal iluminados',
+      '🚨 1 relato de abordagem'
+    ],
+    tucanos: [
+      '⚠️ 1 ponto com pouco movimento',
+      '🚗 1 veículo circulando tarde'
+    ],
+    cinco_conjuntos: [
+      '⚠️ 1 rua escura',
+      '🚨 1 tentativa de abordagem'
+    ],
+    sao_lourenco: [
+      '⚠️ 2 alertas de iluminação',
+      '🚶 1 pessoa suspeita'
+    ],
+    cilo_2: [
+      '⚠️ 1 via deserta à noite',
+      '🚨 1 ocorrência de importunação'
+    ],
+    olimpico: [
+      '⚠️ 1 trecho mal iluminado',
+      '🚨 1 relato de assédio'
+    ],
+    cidade_industrial_1: [
+      '⚠️ 2 vias com iluminação precária',
+      '🚗 1 veículo suspeito'
+    ],
+    industrial_4: [
+      '⚠️ 1 alerta de movimento baixo',
+      '🚨 1 pessoa suspeita'
+    ],
+    vivendas_do_arvoredo: [
+      '⚠️ 1 rua mal iluminada',
+      '🚨 1 tentativa de abordagem'
+    ],
+    presidente: [
+      '⚠️ 2 relatos de iluminação',
+      '🚶 1 comportamento suspeito'
+    ],
+    antares: [
+      '⚠️ 1 via com pouco movimento',
+      '🚨 1 alerta de segurança'
+    ],
+    sao_jorge: [
+      '⚠️ 1 queixa de iluminação',
+      '🚗 1 veículo circulando tarde'
+    ],
+    nova_esperanca: [
+      '⚠️ 2 trechos escuros',
+      '🚨 1 relato de abordagem'
+    ],
+    alto_primavera: [
+      '⚠️ 1 rua mal iluminada',
+      '🚶 1 pessoa suspeita'
+    ],
+    ernani: [
+      '⚠️ 1 ponto com movimento baixo',
+      '🚨 1 tentativa de abordagem'
+    ],
+    coliseu: [
+      '⚠️ 2 alertas de iluminação',
+      '🚨 1 ocorrência registrada'
+    ],
+    palhano_1: [
+      '⚠️ 1 via deserta',
+      '🚗 1 veículo suspeito'
+    ],
+    palhano_2: [
+      '⚠️ 1 trecho mal iluminado',
+      '🚨 1 pessoa suspeita'
+    ],
+    inglaterra: [
+      '⚠️ 2 relatos de iluminação precária',
+      '🚨 1 denúncia de assédio'
+    ],
+    paris: [
+      '⚠️ 1 rua com pouco movimento',
+      '🚶 1 comportamento suspeito'
+    ],
+    quebec: [
+      '⚠️ 1 alerta de iluminação',
+      '🚨 1 tentativa de abordagem'
+    ],
+    guanabara: [
+      '⚠️ 2 vias mal iluminadas',
+      '🚗 1 veículo circulando tarde'
+    ],
+    ouro_verde: [
+      '⚠️ 1 ponto com movimento baixo',
+      '🚨 1 relato de abordagem'
+    ],
+    vila_nova: [
+      '⚠️ 1 rua escura',
+      '🚶 1 pessoa suspeita'
+    ],
+    shangri_la: [
+      '⚠️ 2 alertas de iluminação',
+      '🚨 1 ocorrência de importunação'
+    ],
+    vila_siam: [
+      '⚠️ 1 via com iluminação fraca',
+      '🚨 1 alerta de segurança'
+    ],
+    petropolis: [
+      '⚠️ 1 trecho mal iluminado',
+      '🚗 1 veículo suspeito'
+    ],
+    novo_amparo: [
+      '⚠️ 2 relatos de via deserta',
+      '🚨 1 tentativa de abordagem'
+    ],
+    jamile_dequech: [
+      '⚠️ 1 queixa de iluminação',
+      '🚶 1 pessoa suspeita'
+    ],
+    carnascialli: [
+      '⚠️ 1 rua mal iluminada',
+      '🚨 1 relato de assédio'
+    ],
+    sabara: [
+      '⚠️ 2 pontos com movimento baixo',
+      '🚗 1 veículo circulando tarde'
+    ],
+    fraternidade: [
+      '⚠️ 1 via deserta',
+      '🚨 1 alerta de segurança'
+    ],
+    vila_recreio: [
+      '⚠️ 1 trecho mal iluminado',
+      '🚶 1 comportamento suspeito'
+    ],
+    parque_das_industrias_leves: [
+      '⚠️ 2 alertas de iluminação',
+      '🚨 1 pessoa suspeita observada'
+    ],
+    maria_celina: [
+      '⚠️ 1 rua com pouco movimento',
+      '🚨 1 tentativa de abordagem'
+    ],
+    ipiranga: [
+      '⚠️ 1 queixa de iluminação',
+      '🚗 1 veículo suspeito'
+    ],
+    bela_suica: [
+      '⚠️ 2 vias mal iluminadas',
+      '🚨 1 relato de abordagem'
+    ]
+  };
+
+  // Ensure alertasData has keys for every option in alerta-select (avoid undefined lookups)
+  (function ensureAlertKeys(){
+    try{
+      const sel = document.getElementById('alerta-select');
+      if (!sel) return;
+      Array.from(sel.options).forEach(o => {
+        const v = o.value;
+        if (v && !alertasData[v]) alertasData[v] = [];
+      });
+    }catch(e){console.warn('ensureAlertKeys failed', e)}
+  })();
+
+  const alertaSelect = document.getElementById("alerta-select");
+  const alertasList = document.getElementById("alertas-list");
+  alertaSelect.addEventListener("change", (e) => {
+    const bairro = e.target.value;
+    const opt = e.target.options[e.target.selectedIndex];
+    const nome = opt ? opt.text : '';
+    const bairroOtherInput = document.getElementById('bairro-other-text');
+    const bairroError = document.getElementById('bairro-other-error');
+    const sendBtn = document.getElementById('sendAlertBtn');
+
+    if (bairro === 'outro'){
+      if (bairroOtherInput) { bairroOtherInput.style.display = 'block'; }
+      const displayName = (bairroOtherInput && bairroOtherInput.value.trim()) ? bairroOtherInput.value.trim() : '';
+      // aggregate alerts saved under 'outro' and dynamic 'outro-<slug>' keys
+      const combined = [];
+      Object.keys(alertasData).forEach(k => {
+        if (k === 'outro' || k.indexOf('outro-') === 0) {
+          const arr = alertasData[k];
+          if (Array.isArray(arr)) combined.push(...arr);
+        }
+      });
+      alertasList.innerHTML = `<p>${displayName ? ('<strong>' + displayName + '</strong><br>') : ''}${combined.map(a => capitalizeAlertText('' + a)).join('<br>')}</p>`;
+
+      // validation: require custom bairro and rua to enable sending
+      const streetVal = (document.getElementById('alert-street')||{value:''}).value.trim();
+      const valid = !!(bairroOtherInput && bairroOtherInput.value.trim() && streetVal);
+      if (sendBtn) sendBtn.disabled = !valid;
+      if (bairroError) bairroError.style.display = valid ? 'none' : 'block';
+      if (bairroOtherInput) bairroOtherInput.style.borderColor = valid ? 'rgba(255,255,255,.06)' : '#ffbaba';
+    } else {
+      if (bairroOtherInput) { bairroOtherInput.style.display = 'none'; bairroOtherInput.value = ''; }
+      if (bairroError) bairroError.style.display = 'none';
+      if (sendBtn) sendBtn.disabled = false;
+      const alertas = alertasData[bairro] || [];
+      alertasList.innerHTML = `<p> <strong>${nome}</strong><br>${alertas.map(a => capitalizeAlertText('' + a)).join('<br>')}</p>`;
+    }
+  });
+
+  // atualiza o titulo enquanto digita o bairro
+  (function(){
+    const bairroOther = document.getElementById('bairro-other-text');
+    if (!bairroOther) return;
+    const sendBtnRef = document.getElementById('sendAlertBtn');
+    const bairroError = document.getElementById('bairro-other-error');
+    function updateOutroView(){
+      if (alertaSelect.value === 'outro'){
+        const name = bairroOther.value.trim();
+        const display = name || '';
+        const combined = [];
+        Object.keys(alertasData).forEach(k => {
+          if (k === 'outro' || k.indexOf('outro-') === 0) {
+            const arr = alertasData[k]; if (Array.isArray(arr)) combined.push(...arr);
+          }
+        });
+        alertasList.innerHTML = `<p>${display ? ('<strong>' + display + '</strong><br>') : ''}${combined.map(a => capitalizeAlertText('' + a)).join('<br>')}</p>`;
+        // validation: require name and street when Outro selected
+        const streetVal = (document.getElementById('alert-street')||{value:''}).value.trim();
+        const valid = !!name && !!streetVal;
+        if (sendBtnRef) sendBtnRef.disabled = !valid;
+        if (bairroError){ bairroError.style.display = valid ? 'none' : 'block'; }
+        bairroOther.style.borderColor = valid ? 'rgba(255,255,255,.06)' : '#ffbaba';
+      }
+    }
+    bairroOther.addEventListener('input', updateOutroView);
+    // update send button when street changes
+    const streetInput = document.getElementById('alert-street');
+    if (streetInput){
+      streetInput.addEventListener('input', function(){
+        const streetVal = this.value.trim();
+        const name = (document.getElementById('bairro-other-text')||{value:''}).value.trim();
+        if (alertaSelect.value === 'outro'){
+          const valid = !!name && !!streetVal;
+          if (sendBtnRef) sendBtnRef.disabled = !valid;
+          const bairroError = document.getElementById('bairro-other-error');
+          if (bairroError) bairroError.style.display = valid ? 'none' : 'block';
+        } else {
+          if (sendBtnRef) sendBtnRef.disabled = !streetVal; // require street even for normal bairros
+        }
+        const streetErr = document.getElementById('alert-street-error');
+        if (streetErr) streetErr.style.display = streetVal ? 'none' : 'block';
+      });
+    }
+    // also run on load in case Outro already selected
+    updateOutroView();
+  })();
+
+</script>
+
+<script>
+  // show/hide custom input for 'Outro' outside of send handler
+  (function(){
+    const alertTypeEl = document.getElementById('alert-type');
+    const alertOtherEl = document.getElementById('alert-other-text');
+    if (alertTypeEl && alertOtherEl) {
+      // initialize visibility
+      alertOtherEl.style.display = (alertTypeEl.value === 'outro') ? 'block' : 'none';
+      alertTypeEl.addEventListener('change', function(){
+        if (this.value === 'outro') { alertOtherEl.style.display = 'block'; alertOtherEl.focus(); }
+        else { alertOtherEl.style.display = 'none'; alertOtherEl.value = ''; }
+      });
+    }
+  })();
+</script>
+
+<script>
+  // funcao pra enviar novo alerta
+  (function(){
+    const sendBtn = document.getElementById('sendAlertBtn');
+    if (!sendBtn) return;
+
+    function showToast(msg){
+      const container = document.querySelector('.map-demo-container') || document.body;
+      const toast = document.createElement('div');
+      toast.textContent = msg;
+      toast.style.cssText = 'position:relative;display:inline-block;padding:8px 12px;border-radius:10px;background:var(--green);color:#022; font-weight:700;margin-bottom:8px';
+      container.insertBefore(toast, container.firstChild);
+      setTimeout(()=>{ toast.style.transition='opacity .4s'; toast.style.opacity='0'; setTimeout(()=>toast.remove(),400); }, 1500);
+    }
+
+    sendBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      const tipo = document.getElementById('alert-type').value;
+      const desc = document.getElementById('alert-desc').value.trim();
+      const anon = document.getElementById('alert-anon').checked;
+      const street = (document.getElementById('alert-street')||{value:''}).value.trim();
+      const streetErrorEl = document.getElementById('alert-street-error');
+      if (!street){ window.appToast('Por favor, informe o nome da rua/local antes de enviar.', 'error'); if (streetErrorEl) streetErrorEl.style.display = 'block'; const s = document.getElementById('alert-street'); if (s) s.focus(); return; }
+      let bairro = alertaSelect.value;
+      const opt = alertaSelect.options[alertaSelect.selectedIndex];
+      let nome = opt ? opt.text : '';
+      if (bairro === 'outro'){
+        const custom = (document.getElementById('bairro-other-text')||{value:''}).value.trim();
+        // require custom name for 'Outro'
+        if (!custom){ window.appToast('Por favor, descreva o bairro em "Outro" antes de enviar.', 'error'); const b = document.getElementById('bairro-other-text'); if (b) { b.focus(); } return; }
+        nome = custom;
+        // create a safe slug and save under 'outro-<slug>' so alerts group by custom bairro
+        const slug = ('outro-' + custom.toLowerCase().replace(/[^a-z0-9]+/g,'_')).replace(/^_|_$/g,'');
+        bairro = slug;
+      }
+
+      const tipos = {
+        iluminacao: {emoji:'⚠️', label:'iluminação precária'},
+        pessoa_suspeita: {emoji:'🚶', label:'pessoa suspeita'},
+        assedio: {emoji:'🚨', label:'assédio verbal/sexual'},
+        tentativa_abordagem: {emoji:'🚨', label:'tentativa de abordagem'},
+        veiculo_suspeito: {emoji:'🚗', label:'veículo suspeito'},
+        movimento_baixo: {emoji:'⚠️', label:'movimento baixo / via deserta'},
+        outro: {emoji:'🔎', label:'outro'}
+      };
+
+      
+
+      let t = tipos[tipo] || tipos.outro;
+      // If user selected 'outro', prefer custom text if provided
+      if (tipo === 'outro'){
+        const otherText = (document.getElementById('alert-other-text') || {value:''}).value.trim();
+        const label = otherText || 'outro';
+        t = { emoji: '🔎', label };
+      }
+      let message = `${t.emoji} ${t.label} — ${street}` + (desc ? ` — ${desc}` : '');
+      if (anon) message += ' (anônimo)';
+
+      if (!alertasData[bairro]) alertasData[bairro] = [];
+      alertasData[bairro].unshift(message);
+
+      // Atualiza lista exibida
+      const alertas = alertasData[bairro] || [];
+      alertasList.innerHTML = `<p> <strong>${nome}</strong><br>${alertas.map(a => capitalizeAlertText('' + a)).join('<br>')}</p>`;
+
+      // feedback
+      showToast('Alerta enviado');
+
+      // limpar formulário
+      document.getElementById('alert-desc').value = '';
+      document.getElementById('alert-type').selectedIndex = 0;
+      // limpar rua e esconder possíveis mensagens de erro
+      const streetEl = document.getElementById('alert-street'); if (streetEl) { streetEl.value = ''; }
+      const streetErr = document.getElementById('alert-street-error'); if (streetErr) { streetErr.style.display = 'none'; }
+      // reset bairro custom input if used
+      const bairroOther = document.getElementById('bairro-other-text');
+      if (bairroOther) { bairroOther.value = ''; barrioOther.style.display = 'none'; }
+      if (sendBtn) sendBtn.disabled = false;
+    });
+  })();
+
+  /* -------- Normalize and sort bairro option labels: remove underscores, titlecase, alphabetical (keep 'outro' last) -------- */
+  (function(){
+    function titleCaseWords(str){
+      return str.split(/\s+/).map(word => {
+        return word.split(/[-\/]/).map(part => {
+          if (!part) return part;
+          return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+        }).join('-');
+      }).join(' ');
+    }
+
+    ['alerta-select','bairro-select'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+
+      // Build normalized option objects
+      const opts = Array.from(sel.options).map(opt => {
+        const raw = (opt.textContent || '').trim();
+        let text = raw.replace(/_/g, ' ');
+        text = titleCaseWords(text);
+        return { value: opt.value, text, selected: opt.selected, original: opt };
+      });
+
+      // Sort alphabetically by text, but keep items with value 'outro' last
+      opts.sort((a,b) => {
+        if (a.value === 'outro' && b.value === 'outro') return 0;
+        if (a.value === 'outro') return 1;
+        if (b.value === 'outro') return -1;
+        const ta = a.text.toLowerCase();
+        const tb = b.text.toLowerCase();
+        if (ta < tb) return -1;
+        if (ta > tb) return 1;
+        return 0;
+      });
+
+      // Replace options in the select preserving selection
+      sel.innerHTML = '';
+      opts.forEach(o => {
+        const el = document.createElement('option');
+        el.value = o.value;
+        el.textContent = o.text;
+        if (o.selected) el.selected = true;
+        sel.appendChild(el);
+      });
+    });
+  })();
+
+  /* Helper: capitalize first alphabetical character (keeps leading emojis/punctuation) */
+  function capitalizeAlertText(s){
+    if (!s || typeof s !== 'string') return s;
+    return s.replace(/(^\s*[^A-Za-zÀ-ÖØ-öø-ÿ]*)([A-Za-zÀ-ÖØ-öø-ÿ])/, function(_, p1, p2){
+      return p1 + p2.toUpperCase();
+    });
+  }
+
+  /* -------- Eventos comunitários: modal, persistência e render -------- */
+  (function(){
+    const btnCreate = document.getElementById('btnCreateEvent');
+    const modal = document.getElementById('eventModal');
+    const cancelBtn = document.getElementById('cancelEventBtn');
+    const saveBtn = document.getElementById('saveEventBtn');
+    const eventBairro = document.getElementById('event-bairro');
+
+    if (!btnCreate || !modal) return;
+
+    // populate bairro options by cloning alerta-select
+    const alertaSelectEl = document.getElementById('alerta-select');
+    if (alertaSelectEl && eventBairro) {
+      // create an empty option first
+      eventBairro.innerHTML = '';
+      Array.from(alertaSelectEl.options).forEach(opt => {
+        const o = document.createElement('option');
+        o.value = opt.value;
+        o.textContent = opt.textContent;
+        eventBairro.appendChild(o);
+      });
+    }
+
+    function openModal(){ modal.style.display = 'flex'; modal.setAttribute('aria-hidden','false'); }
+    function closeModal(){ modal.style.display = 'none'; modal.setAttribute('aria-hidden','true'); }
+
+    btnCreate.addEventListener('click', (e)=>{ e.preventDefault(); openModal(); });
+    cancelBtn.addEventListener('click', (e)=>{ e.preventDefault(); closeModal(); });
+
+    // persistence helpers
+    function loadEvents(){
+      try{ return JSON.parse(localStorage.getItem('appEvents') || '[]'); }catch(e){ return []; }
+    }
+    function saveEvents(arr){ localStorage.setItem('appEvents', JSON.stringify(arr)); }
+
+    function renderEvents(){
+      // Events are shown only inside the Notificações modal; no inline rendering here.
+      return;
+    }
+
+    const eventBairroOther = document.getElementById('event-bairro-other');
+    const eventBairroErr = document.getElementById('event-bairro-error');
+    const eventStreet = document.getElementById('event-street');
+    const eventStreetErr = document.getElementById('event-street-error');
+
+    // show/hide custom bairro input when 'outro' selected
+    if (eventBairro){
+      eventBairro.addEventListener('change', function(){
+        if (this.value === 'outro'){
+          if (eventBairroOther) eventBairroOther.style.display = 'block';
+          if (eventBairroErr) eventBairroErr.style.display = 'block';
+        } else {
+          if (eventBairroOther) { eventBairroOther.style.display = 'none'; eventBairroOther.value = ''; }
+          if (eventBairroErr) eventBairroErr.style.display = 'none';
+        }
+      });
+    }
+
+    if (eventBairroOther) eventBairroOther.addEventListener('input', () => { if (eventBairroErr) eventBairroErr.style.display = 'none'; });
+    if (eventStreet) eventStreet.addEventListener('input', () => { if (eventStreetErr) eventStreetErr.style.display = 'none'; });
+
+    saveBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      const title = document.getElementById('event-title').value.trim();
+      const date = document.getElementById('event-date').value;
+      const time = document.getElementById('event-time').value;
+      const type = document.getElementById('event-type').options[document.getElementById('event-type').selectedIndex].text;
+      // determine bairro: if 'outro' selected, use custom input
+      let bairro = '';
+      const bairroSelectEl = document.getElementById('event-bairro');
+      if (bairroSelectEl){
+        const selVal = bairroSelectEl.value;
+        if (selVal === 'outro'){
+          if (!eventBairroOther || !eventBairroOther.value.trim()){
+            if (eventBairroErr) eventBairroErr.style.display = 'block';
+            window.appToast('Informe o nome do bairro.', 'error');
+            return;
+          }
+          bairro = eventBairroOther.value.trim();
+        } else {
+          const opt = bairroSelectEl.options[bairroSelectEl.selectedIndex];
+          bairro = opt ? opt.textContent : '';
+        }
+      }
+      const desc = document.getElementById('event-desc').value.trim();
+
+      // require title, date, time and street
+      if (!title || !date || !time) { window.appToast('Preencha título, data e hora.', 'error'); return; }
+      if (!eventStreet || !eventStreet.value.trim()){ if (eventStreetErr) eventStreetErr.style.display = 'block'; window.appToast('Informe a rua / local do evento.', 'error'); return; }
+
+      const events = loadEvents();
+      const streetVal = eventStreet.value.trim();
+      events.unshift({ title, date, time, type, bairro, street: streetVal, desc, createdAt: new Date().toISOString() });
+      saveEvents(events);
+      renderEvents();
+      closeModal();
+      // small toast
+      const t = document.createElement('div'); t.textContent='Evento salvo'; t.style.cssText='position:relative;display:inline-block;padding:8px 12px;border-radius:10px;background:var(--green);color:#022; font-weight:700;margin:8px 0;';
+      const container = document.querySelector('.community-chat') || document.body; container.insertBefore(t, container.firstChild);
+      setTimeout(()=>{ t.style.transition='opacity .4s'; t.style.opacity='0'; setTimeout(()=>t.remove(),400); },1200);
+      // clear form
+      document.getElementById('event-title').value=''; document.getElementById('event-desc').value=''; document.getElementById('event-date').value=''; document.getElementById('event-time').value='';
+      if (eventStreet) { eventStreet.value=''; if (eventStreetErr) eventStreetErr.style.display='none'; }
+      if (eventBairroOther) { eventBairroOther.value=''; eventBairroOther.style.display='none'; }
+      if (eventBairroErr) eventBairroErr.style.display='none';
+    });
+
+    // initial render
+    renderEvents();
+  })();
+</script>
+
+            <!-- telefones de emergencia -->
+            <div class="section">
+              <h3 style="margin:0 0 8px;font-size:16px">☎️ Contatos de Emergência</h3>
+              
+              <div class="emergency-list">
+                <div class="emergency-item">
+                  <span class="emergency-number">190</span>
+                  <span class="emergency-name">Polícia Militar</span>
+                </div>
+                <div class="emergency-item">
+                  <span class="emergency-number">197</span>
+                  <span class="emergency-name">Polícia Civil</span>
+                </div>
+                <div class="emergency-item">
+                  <span class="emergency-number">193</span>
+                  <span class="emergency-name">Bombeiros</span>
+                </div>
+                <div class="emergency-item">
+                  <span class="emergency-number">192</span>
+                  <span class="emergency-name">SAMU</span>
+                </div>
+                <div class="emergency-item">
+                  <span class="emergency-number">199</span>
+                  <span class="emergency-name">Defesa Civil</span>
+                </div>
+                <div class="emergency-item">
+                  <span class="emergency-number">180</span>
+                  <span class="emergency-name">Atendimento à Mulher</span>
+                </div>
+                <div class="emergency-item">
+                  <span class="emergency-number">181</span>
+                  <span class="emergency-name">Disque Denúncia</span>
+                </div>
+                <div class="emergency-item">
+                  <span class="emergency-number">125</span>
+                  <span class="emergency-name">Conselho Tutelar</span>
+                </div>
+                <div class="emergency-item">
+                  <span class="emergency-number" style="font-size:10px">0800 722 6001</span>
+                  <span class="emergency-name">Info. Toxicológica</span>
+                </div>
+                <div class="emergency-item">
+                  <span class="emergency-number">188</span>
+                  <span class="emergency-name">Centro de Valorização da Vida (CVV)</span>
+                </div>
+                <div class="emergency-item">
+                  <span class="emergency-number">153</span>
+                  <span class="emergency-name">Guarda Municipal</span>
+                </div>
+                <div class="emergency-item">
+                  <span class="emergency-number">136</span>
+                  <span class="emergency-name">Disque Saúde (SUS)</span>
+                </div>
+              </div>
+            </div>
+             
+            <!-- Rota Segura (novo mapa, abre quando clicado) -->
+            <div id="route-section" class="section route-section" aria-label="Traçar rota segura">
+              <h3 style="margin:0 0 8px;font-size:16px">Traçar rota segura</h3>
+              <p class="muted" style="margin-top:0">Clique no mapa para marcar origem e destino.</p>
+              <div class="map-demo-container">
+                <div id="route-map"></div>
+                <div class="map-note">Dica: arraste os marcadores para ajustar. A distância é calculada em linha reta.</div>
+              </div>
+            </div>
+            
+            <!-- parte das doacoes e assinaturas -->
+            <div class="section">
+              <h3 style="margin:0 0 8px;font-size:16px"> Apoie o Projeto</h3>
+              <p class="muted" style="margin-top:0">Ajude-nos a manter e expandir esta iniciativa de segurança.</p>
+
+              <div class="cards">
+                <div class="card donation-card">
+                  <h3>Doação Única</h3>
+                  <div class="donation-options">
+                    <button class="donation-btn">R$ 10</button>
+                    <button class="donation-btn">R$ 25</button>
+                    <button class="donation-btn">R$ 50</button>
+                    <button class="donation-btn">Outro valor</button>
+                  </div>
+                  <a class="btn" href="https://livepix.gg/sarahmacacos" target="_blank" rel="noopener noreferrer" style="margin-top:10px;display:inline-block;text-decoration:none">Doar Agora</a>
+                </div>
+
+                <div class="card subscription-card">
+                  <h3>Compare os Planos</h3>
+                  <div class="plan-comparison">
+                    <div class="plans-header">
+                      <div class="plan-column">
+                        <div class="plan-details">
+                          <h4>Gratuito</h4>
+                          <p class="price">R$ 0</p>
+                          <button class="btn btn-outline" disabled>Plano Atual</button>
+                        </div>
+                      </div>
+                      <div class="plan-column featured">
+                        <div class="plan-details">
+                          <h4>Apoiador</h4>
+                          <p class="price">R$ 15/mês</p>
+                          <button class="btn">Assinar Agora</button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="features-list">
+                      <div class="feature-row">
+                        <span class="feature-name"></span>
+                        <span class="plan-title">Gratuito</span>
+                        <span class="plan-title">Apoiador</span>
+                      </div>
+                      <div class="feature-row">
+                        <span class="feature-name">Mapa de risco</span>
+                        <span class="icon">●</span>
+                        <span class="icon">●</span>
+                      </div>
+                      <div class="feature-row">
+                        <span class="feature-name">Alertas anônimos</span>
+                        <span class="icon">●</span>
+                        <span class="icon">●</span>
+                      </div>
+                      <div class="feature-row">
+                        <span class="feature-name">Notificações em tempo real</span>
+                          <span class="icon">●</span>
+                          <span class="icon">●</span>
+                      </div>
+                      <div class="feature-row">
+                        <span class="feature-name">Rota segura</span>
+                        <span class="limited">Limitado</span>
+                        <span class="unlimited">Ilimitado</span>
+                      </div>
+                      <div class="feature-row">
+                        <span class="feature-name">Relatório mensal</span>
+                        <span class="icon no">○</span>
+                        <span class="icon">●</span>
+                      </div>
+                      <div class="feature-row">
+                        <span class="feature-name">Sem anúncios</span>
+                        <span class="icon no">○</span>
+                        <span class="icon">●</span>
+                      </div>
+                      <div class="feature-row">
+                        <span class="feature-name">Canal Telegram exclusivo</span>
+                        <span class="icon no">○</span>
+                        <span class="icon">●</span>
+                      </div>
+                      <div class="feature-row">
+                        <span class="feature-name">Suporte prioritário</span>
+                        <span class="icon no">○</span>
+                        <span class="icon">●</span>
+                      </div>
+                      <div class="feature-row">
+                        <span class="feature-name">Badge de apoiador</span>
+                        <span class="icon no">○</span>
+                        <span class="icon">●</span>
+                      </div>
+                      <div class="feature-row">
+                        <span class="feature-name">Votação de recursos</span>
+                        <span class="icon no">○</span>
+                        <span class="icon">●</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <style>
+                  .plan-comparison {
+                    background: rgba(255,255,255,.04);
+                    border-radius: 12px;
+                    padding: 12px;
+                    margin-top: 15px;
+                  }
+
+                  .plans-header {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 10px;
+                    margin-bottom: 20px;
+                    text-align: center;
+                  }
+
+                  .plan-column {
+                    padding: 10px;
+                  }
+
+                  .plan-column.featured {
+                    background: rgba(255,195,0,.1);
+                    border-radius: 10px;
+                    border: 1px solid rgba(255,195,0,.2);
+                  }
+
+                  .plan-column h4 {
+                    margin: 0;
+                    color: var(--branco);
+                    font-size: 15px;
+                  }
+
+                  .plan-column .price {
+                    font-size: 14px;
+                    font-weight: 700;
+                    margin: 8px 0;
+                    color: var(--amarelo);
+                  }
+
+                  .features-list {
+                    font-size: 13px;
+                  }
+
+                  .feature-row {
+                    display: grid;
+                    grid-template-columns: 2fr 1fr 1fr;
+                    padding: 8px 0;
+                    border-bottom: 1px solid rgba(255,255,255,.06);
+                    align-items: center;
+                  }
+
+                  .feature-name {
+                    color: var(--cinza);
+                  }
+
+                  .icon {
+                    text-align: center;
+                    color: var(--amarelo);
+                    font-size: 16px;
+                  }
+
+                  .icon.no {
+                    color: rgba(255,255,255,.3);
+                  }
+
+                  .limited, .unlimited {
+                    text-align: center;
+                    font-size: 12px;
+                  }
+
+                  .limited {
+                    color: var(--cinza);
+                  }
+
+                  .unlimited {
+                    color: var(--amarelo);
+                  }
+
+                  .plan-labels {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 10px;
+                    margin-bottom: 15px;
+                  }
+
+                  .plan-group {
+                    text-align: center;
+                  }
+
+                  .plan-label {
+                    color: var(--branco);
+                    font-weight: 600;
+                    font-size: 14px;
+                  }
+
+                  .feature-row {
+                    display: grid;
+                    grid-template-columns: 2fr 1fr 1fr;
+                    align-items: center;
+                  }
+
+                  .header-row {
+                    border-bottom: 2px solid rgba(255,255,255,.1) !important;
+                    margin-bottom: 8px;
+                    padding-bottom: 12px;
+                  }
+
+                  .plan-title {
+                    text-align: center;
+                    font-weight: 600;
+                    color: var(--branco);
+                    font-size: 12px;
+                    width: 100%;
+                  }
+                </style>
+
+                <div class="card impact-card">
+                  <h3>Seu Impacto</h3>
+                  <p class="muted" style="font-size:13px;">
+                    • Manutenção da plataforma<br>
+                    • Expansão para novas cidades<br>
+                    • Desenvolvimento de recursos<br>
+                    • Campanhas de conscientização
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="footer">© <span id="year"></span> AlertaSegura</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    /* Estilos para contatos de emergência */
+    .emergency-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .emergency-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: rgba(255,255,255,.04);
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .emergency-number {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--amarelo);
+      min-width: 32px;
+    }
+    .emergency-name {
+      font-size: 12px;
+      color: var(--branco);
+      line-height: 1.3;
+    }
+
+    /* Estilos para a seção de doações */
+    .donation-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    /* Make donation buttons consistent in size and alignment */
+    .donation-options > .donation-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      box-sizing: border-box;
+      height: 44px;
+      min-height: 44px;
+      padding: 0 12px;
+      font-size: 14px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--branco);
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: background 0.15s, transform 0.12s;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .donation-options > .donation-btn:hover {
+      background: rgba(255,255,255,.12);
+      transform: translateY(-1px);
+    }
+
+    .donation-options > .donation-btn:focus {
+      outline: 2px solid var(--ring);
+      outline-offset: 2px;
+    }
+
+    /* Marcadores refinados: pinos SVG limpos com sombra e cor por severidade */
+    .leaflet-div-icon { background: transparent !important; border: none !important; }
+    .leaflet-div-icon svg { filter: drop-shadow(0 4px 8px rgba(0,0,0,.45)); display:block }
+
+    /* Popup styling para o mapa de agressores */
+    .aggressor-popup { font-size:13px; color:var(--branco) }
+    .aggressor-popup .meta { color:var(--cinza); font-size:12px; margin-top:6px }
+
+    .subscription-plans .plan {
+      background: rgba(255,255,255,.04);
+      border-radius: 12px;
+      padding: 12px;
+      margin: 10px 0;
+    }
+
+    .subscription-plans h4 {
+      margin: 0;
+      color: var(--amarelo);
+      font-size: 15px;
+    }
+
+    .subscription-plans .price {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 8px 0;
+      color: var(--branco);
+    }
+
+    .benefits {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      font-size: 13px;
+      color: var(--cinza);
+    }
+
+    .benefits li {
+      margin: 4px 0;
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .benefits li:before {
+      content: "•";
+      color: var(--amarelo);
+      position: absolute;
+      left: 0;
+    }
+
+    .impact-card .muted {
+      line-height: 1.6;
+    }
+    /* Event modal styles */
+    .event-modal {
+      position: absolute;
+      inset: 0;
+      /* softer, layered background with blur for a frosted look */
+      background: linear-gradient(180deg, rgba(2,6,23,0.52), rgba(2,6,23,0.72));
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1200;
+      padding: 16px;
+      backdrop-filter: blur(6px) saturate(120%);
+    }
+    .event-modal .card {
+      max-width: 380px;
+      width: 100%;
+      padding: 16px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 12px 30px rgba(2,6,23,0.6);
+    }
+    /* Notifications modal (shared visual style) */
+    .notify-modal { position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:1220; padding:16px; background: linear-gradient(180deg, rgba(2,6,23,0.52), rgba(2,6,23,0.72)); backdrop-filter: blur(6px) saturate(120%); }
+    .notify-modal .card { max-width:420px; width:100%; padding:12px 14px; border-radius:12px; background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.04); box-shadow:0 10px 24px rgba(0,0,0,0.5); }
+    .notify-list-item{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.03); color:var(--cinza); font-size:13px}
+    .event-form-row{display:flex;gap:8px;margin-top:8px}
+    .event-form-row .half{flex:1}
+    .events-list-card{margin-top:10px}
+    /* Toast notifications */
+    .app-toast-container{position:fixed;right:14px;top:14px;z-index:2500;display:flex;flex-direction:column;gap:8px}
+    .app-toast{min-width:180px;padding:10px 12px;border-radius:10px;color:#022;font-weight:700;background:rgba(255,255,255,.9);box-shadow:0 8px 20px rgba(0,0,0,.35);}
+    .app-toast.error{background:#ff6b6b;color:#111}
+    .app-toast.success{background:#22c55e;color:#022}
+    .app-toast.info{background:rgba(255,255,255,.9);color:#022}
+  </style>
+
+  <!-- codigos javascript -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    /* -------- MAPA HERO (RISCO + CLUSTERS) -------- */
+    const mapHero = L.map('map-hero', {
+      zoomControl: true,
+      scrollWheelZoom: true,
+      dragging: true,
+      tap: true,
+      attributionControl: false
+    }).setView([-23.3103, -51.1628], 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(mapHero);
+
+    const heroMarkers = L.markerClusterGroup({
+      maxClusterRadius: 60,
+      iconCreateFunction: function(cluster) {
+        const count = cluster.getChildCount();
+        let c = ' marker-cluster-';
+        if (count < 10) c += 'small';
+        else if (count < 100) c += 'medium';
+        else c += 'large';
+        return new L.DivIcon({
+          html: '<div><span>' + count + '</span></div>',
+          className: 'marker-cluster' + c,
+          iconSize: new L.Point(40, 40)
+        });
+      }
+    });
+
+    for (let i = 0; i < 200; i++) {
+      const lat = -23.3103 + (Math.random() - 0.5) * 0.1;
+      const lng = -51.1628 + (Math.random() - 0.5) * 0.12;
+
+      const r = Math.random();
+      let riscoClass = r < 0.6 ? 'g' : r < 0.9 ? 'y' : 'r';
+
+      const heroIcon = L.divIcon({
+        className: `marker-icon-hero ${riscoClass}`,
+        iconSize: [14, 14]
+      });
+      heroMarkers.addLayer(L.marker([lat, lng], { icon: heroIcon }));
+    }
+    mapHero.addLayer(heroMarkers);
+
+    /* -------- MAPA DEMO (Pontos) -------- */
+    const initialCoords = [-23.318, -51.175];
+    const map = L.map('mapa', { zoomControl: false, scrollWheelZoom: true }).setView(initialCoords, 15);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    L.control.zoom({ position: 'topleft' }).addTo(map);
+
+    let markerGroup = L.layerGroup().addTo(map);
+    const pointsCountEl = document.getElementById('points-count');
+    const addressTextEl = document.getElementById('address-text');
+
+    // Gera marcadores com pinos SVG limpos e severidade (low/med/high)
+    function generateMarkers(center, numPoints) {
+      markerGroup.clearLayers();
+      const [centerLat, centerLng] = center;
+      const spread = 0.015;
+      for (let i = 0; i < numPoints; i++) {
+        const lat = centerLat + (Math.random() - 0.5) * spread;
+        const lng = centerLng + (Math.random() - 0.5) * spread;
+
+        const r = Math.random();
+        const severity = r < 0.2 ? 'low' : r < 0.8 ? 'med' : 'high';
+        const color = severity === 'low' ? '#ff6600' : severity === 'med' ? '#ffbb00' : '#cc0000';
+
+        // SVG pino (teardrop) com círculo interno
+        const svg = encodeURIComponent(`
+          <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 34' width='28' height='36'>
+            <path d='M12 0C7 0 3 4.5 3 9.5 3 16 12 34 12 34s9-18 9-24.5C21 4.5 17 0 12 0z' fill='${color}' stroke='%23ffffff' stroke-width='1.4'/>
+            <circle cx='12' cy='9.5' r='3.8' fill='%23ffffff'/>
+          </svg>`);
+
+        const markerHtml = `<img src="data:image/svg+xml;utf8,${svg}" class="pin-svg" style="width:28px;height:36px;display:block"/>`;
+        const markerIcon = L.divIcon({ html: markerHtml, className: '', iconSize: [28, 36], iconAnchor: [14, 34] });
+
+        const types = ['Condenado por agressão', 'Denúncia registrada', 'Reincidência registrada'];
+        const typeLabel = types[Math.floor(Math.random() * types.length)];
+        const freq = 1 + Math.floor(Math.random() * 8);
+        const popupHtml = `<div class="aggressor-popup"><strong>Alerta #${i + 1}</strong><div class="meta">${typeLabel} — ${freq} ocorrência(s) nas proximidades</div></div>`;
+
+        const marker = L.marker([lat, lng], { icon: markerIcon }).bindPopup(popupHtml);
+        markerGroup.addLayer(marker);
+      }
+    }
+
+    (function(){
+      const bairroSelectEl = document.getElementById('bairro-select');
+      const bairroOtherMap = document.getElementById('bairro-other-text-map');
+      const bairroErrorMap = document.getElementById('bairro-other-error-map');
+
+      function onSelectChange(e){
+        const val = e.target.value;
+        const selectedOption = e.target.options[e.target.selectedIndex];
+
+        if (val === 'outro'){
+          if (bairroOtherMap) bairroOtherMap.style.display = 'block';
+          if (bairroErrorMap) bairroErrorMap.style.display = 'block';
+          // show placeholder address and zero points until user types
+          pointsCountEl.textContent = `0 Pontos de Interesse Próximos`;
+          addressTextEl.textContent = 'Outro (especifique abaixo)';
+          // hide markers
+          markerGroup.clearLayers();
+          return;
+        }
+
+        if (bairroOtherMap) { bairroOtherMap.style.display = 'none'; bairroOtherMap.value = ''; }
+        if (bairroErrorMap) bairroErrorMap.style.display = 'none';
+
+        const coords = val.split(',').map(Number);
+        const address = selectedOption.getAttribute('data-address');
+        map.setView(coords, 15);
+        const newPointCount = 100 + Math.floor(Math.random() * 51);
+        generateMarkers(coords, newPointCount);
+        pointsCountEl.textContent = `${newPointCount} Pontos de Interesse Próximos`;
+        addressTextEl.textContent = address;
+      }
+
+      if (bairroSelectEl) {
+        bairroSelectEl.addEventListener('change', onSelectChange);
+      }
+
+      if (bairroOtherMap){
+        bairroOtherMap.addEventListener('input', function(){
+          const name = this.value.trim();
+          if (name){
+            addressTextEl.textContent = name;
+            pointsCountEl.textContent = `0 Pontos de Interesse Próximos`;
+            bairroErrorMap.style.display = 'none';
+          } else {
+            addressTextEl.textContent = 'Outro (especifique abaixo)';
+            bairroErrorMap.style.display = 'block';
+          }
+        });
+      }
+    })();
+
+    const initialPointCount = 137;
+    generateMarkers(initialCoords, initialPointCount);
+    pointsCountEl.textContent = `${initialPointCount} Pontos de Interesse Próximos`;
+
+    /* -------- Mapa de Rota Segura (novo) -------- */
+    let routeMap; let routeMapInitialized = false;
+    let rMeasureMode = false; let rMarkers = []; let rLine = null; let rCtrlAdded = false;
+    const routeCtrl = L.control({ position: 'topright' });
+    routeCtrl.onAdd = function(map){
+      const div = L.DomUtil.create('div','measure-control');
+      div.innerHTML = `
+        <div id="route-status" class="measure-hint">Clique no mapa: origem</div>
+        <div class="measure-row">
+          <button id="btnRouteClear" type="button" class="measure-btn">Limpar</button>
+        </div>
+      `;
+      L.DomEvent.disableScrollPropagation(div);
+      return div;
+    };
+    function rFormatDistance(m){ return m < 1000 ? `${m.toFixed(0)} m` : `${(m/1000).toFixed(2)} km`; }
+    function rClear(){
+      if (rLine){ routeMap.removeLayer(rLine); rLine = null; }
+      rMarkers.forEach(m => routeMap.removeLayer(m));
+      rMarkers = [];
+      const c = routeCtrl.getContainer(); if (c) c.querySelector('#route-status').textContent = 'Clique no mapa: origem';
+    }
+    function rDraw(){
+      if (rMarkers.length < 2) return;
+      const p1 = rMarkers[0].getLatLng();
+      const p2 = rMarkers[1].getLatLng();
+      const dist = p1.distanceTo(p2);
+      if (rLine) routeMap.removeLayer(rLine);
+      rLine = L.polyline([p1,p2], { color:'#FFC300', weight:3, dashArray:'6,6' }).addTo(routeMap);
+      const c = routeCtrl.getContainer(); if (c) c.querySelector('#route-status').innerHTML = `Distância: <b>${rFormatDistance(dist)}</b>`;
+      try { routeMap.fitBounds(L.latLngBounds([p1,p2]), { padding:[20,20] }); } catch(e) {}
+    }
+    function startRouteMeasure(){
+      if (!rCtrlAdded){ routeCtrl.addTo(routeMap); rCtrlAdded = true; }
+      rClear(); rMeasureMode = true;
+      const c = routeCtrl.getContainer(); if (c) c.querySelector('#route-status').textContent = 'Clique no mapa: origem';
+    }
+    function initRouteMap(){
+      if (routeMapInitialized) return;
+      routeMap = L.map('route-map', { zoomControl:true, scrollWheelZoom:true }).setView(initialCoords, 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(routeMap);
+      routeMap.on('click', (e) => {
+        if (!rMeasureMode) return;
+        const marker = L.marker(e.latlng, { draggable:true }).addTo(routeMap);
+        rMarkers.push(marker);
+        const c = routeCtrl.getContainer();
+        if (rMarkers.length === 1){ if (c) c.querySelector('#route-status').textContent = 'Clique no mapa: destino'; }
+        else if (rMarkers.length === 2){ rDraw(); rMeasureMode = false; }
+        else { rClear(); rMarkers.push(marker); if (c) c.querySelector('#route-status').textContent = 'Clique no mapa: destino'; }
+        marker.on('drag', () => { if (rMarkers.length === 2) rDraw(); });
+      });
+      routeMapInitialized = true;
+    }
+    // Botão limpar do painel do mapa de rota
+    document.addEventListener('click', (e) => {
+      if (e.target && e.target.id === 'btnRouteClear'){ rClear(); rMeasureMode = true; }
+    });
+    // Abrir seção e iniciar medição ao clicar em "Traçar rota segura"
+    const btnTracar = document.getElementById('btnTraçar');
+    if (btnTracar){
+      btnTracar.addEventListener('click', () => {
+        const sec = document.getElementById('route-section');
+        if (sec) sec.classList.add('open');
+        initRouteMap();
+        const el = document.getElementById('route-map');
+        if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+        setTimeout(()=> routeMap.invalidateSize(), 80);
+        startRouteMeasure();
+      });
+    }
+
+    /* -------- Atalhos de botões -------- */
+    document.getElementById('btnComunidade').addEventListener('click', () => {
+      // Scroll suave até a seção de comunidade
+      document.querySelector('.community-chat').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    document.getElementById('btnMapa').addEventListener('click', () => {
+      document.getElementById('mapa').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    // Botão de alerta anônimo rola até a seção de alertas
+    document.getElementById('btnAlerta').addEventListener('click', () => {
+      document.getElementById('alerta-select').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    // ir para o início da página/app
+    (function(){
+      const shieldEl = document.querySelector('.shield');
+      if (!shieldEl) return;
+      // garantir cursor e acessibilidade
+      shieldEl.style.cursor = 'pointer';
+      shieldEl.setAttribute('role', 'button');
+      shieldEl.setAttribute('tabindex', '0');
+      const goTop = () => {
+        const appScroll = document.querySelector('.app-scroll');
+        if (appScroll) appScroll.scrollTo({ top: 0, behavior: 'smooth' });
+        else window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+      shieldEl.addEventListener('click', goTop);
+      shieldEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goTop(); } });
+    })();
+
+  </script>
+  <script>
+    // Global toast helper: appToast(message, type)
+    window.appToast = function(msg, type){
+      try{
+        let container = document.querySelector('.app-toast-container');
+        if (!container){ container = document.createElement('div'); container.className = 'app-toast-container'; document.body.appendChild(container); }
+        const node = document.createElement('div'); node.className = 'app-toast ' + (type || 'info');
+        node.textContent = msg;
+        container.appendChild(node);
+        setTimeout(()=>{ node.style.transition='opacity .35s, transform .35s'; node.style.opacity='0'; node.style.transform='translateY(-6px)'; setTimeout(()=>node.remove(),400); }, 2400);
+        return node;
+      }catch(e){ console.warn('Toast failed', e); }
+    };
+  </script>
+  <script>
+    (function(){
+      const btnNotify = document.getElementById('btnNotifications');
+      const notifyModal = document.getElementById('notifyModal');
+      const closeBtn = document.getElementById('closeNotifyBtn');
+      const notifyList = document.getElementById('notify-list');
+
+      function getAppEvents(){ try{ return JSON.parse(localStorage.getItem('appEvents')||'[]'); }catch(e){ return []; } }
+
+      function renderNotifications(){
+        const events = getAppEvents();
+        let html = '';
+        if (events && events.length){
+          html += '<div class="events-list-card">';
+          html += '<h4 style="margin:6px 0 8px;color:var(--amarelo)">Eventos Comunitários</h4>';
+          events.slice(0,8).forEach(ev => {
+            html += `<div class="notify-list-item"><strong>${ev.title}</strong><div style="color:var(--cinza);font-size:12px">${ev.date} ${ev.time} — ${ev.bairro}</div>`;
+            if (ev.desc) html += `<div style="margin-top:6px;color:var(--branco);font-size:13px">${ev.desc}</div>`;
+            html += `</div>`;
+          });
+          html += '</div>';
+        }
+
+        // Gather a few recent alerts (first item of each bairro)
+        const alerts = [];
+        for (const b in alertasData){
+          const arr = alertasData[b];
+          if (Array.isArray(arr) && arr.length){ alerts.push({ bairro: b, text: arr[0] }); }
+        }
+        if (alerts.length){
+          html += '<div style="margin-top:10px"><h4 style="margin:6px 0 8px;color:var(--amarelo)">Últimos Alertas</h4>';
+          alerts.slice(0,8).forEach(a => {
+            const opt = document.querySelector(`#alerta-select option[value="${a.bairro}"]`);
+            let name = (opt && opt.textContent) ? opt.textContent : a.bairro.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            html += `<div class="notify-list-item"><strong>${name}</strong><div style="color:var(--branco);font-size:13px;margin-top:4px">${capitalizeAlertText(a.text)}</div></div>`;
+          });
+          html += '</div>';
+        }
+
+        if (!html) html = '<div class="notify-list-item">Nenhuma notificação no momento.</div>';
+        if (notifyList) notifyList.innerHTML = html;
+      }
+
+      function openNotify(){ if (!notifyModal) return; notifyModal.style.display='flex'; notifyModal.setAttribute('aria-hidden','false'); renderNotifications(); }
+      function closeNotify(){ if (!notifyModal) return; notifyModal.style.display='none'; notifyModal.setAttribute('aria-hidden','true'); }
+
+      if (btnNotify && notifyModal){
+        btnNotify.addEventListener('click', (e) => { e.preventDefault(); openNotify(); });
+        if (closeBtn) closeBtn.addEventListener('click', (e) => { e.preventDefault(); closeNotify(); });
+        notifyModal.addEventListener('click', (e) => { if (e.target === notifyModal) closeNotify(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNotify(); });
+      }
+    })();
+  </script>
+  <script>
+    // Redirect most buttons to the donation link (opens in new tab).
+    (function(){
+      const donateUrl = 'https://livepix.gg/sarahmacacos';
+      const excludeIds = new Set(['btnComunidade','btnMapa','btnAlerta','btnNotifications']);
+      const excludeClasses = new Set(['tab-btn','btn-outline']);
+
+      function shouldRedirect(btn){
+        if (!btn) return false;
+        if (btn.disabled) return false;
+        if (excludeIds.has(btn.id)) return false;
+        for (const cls of excludeClasses) if (btn.classList.contains(cls)) return false;
+        // keep buttons that are inside elements marked data-no-redirect
+        if (btn.closest('[data-no-redirect]')) return false;
+        return true;
+      }
+
+      document.querySelectorAll('button').forEach(btn => {
+        if (!shouldRedirect(btn)) return;
+        // Avoid adding duplicate handlers
+        btn.addEventListener('click', (e) => {
+          try{
+            // prevent default (so we don't run other handlers that might navigate elsewhere)
+            e.preventDefault();
+          }catch(_){ }
+          window.open(donateUrl, '_blank', 'noopener');
+        });
+      });
+    })();
+  </script>
+    <script>
+      // Ensure all bairro selects are alphabetized (pt-BR) and keep "Outro" last.
+      (function(){
+        function sortSelect(id){
+          try{
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            const current = sel.value;
+            const opts = Array.from(sel.options);
+            const outro = opts.filter(o => (o.value||'').toLowerCase() === 'outro' || (o.text||'').toLowerCase().trim() === 'outro');
+            const normal = opts.filter(o => outro.indexOf(o) === -1);
+            normal.sort((a,b) => a.text.localeCompare(b.text, 'pt-BR', { sensitivity: 'base' }));
+            sel.innerHTML = '';
+            normal.forEach(o => sel.appendChild(o));
+            outro.forEach(o => sel.appendChild(o));
+            if (current) sel.value = current;
+          }catch(e){ console.warn('sortSelect error for', id, e); }
+        }
+
+        function ensureSort(){
+          sortSelect('alerta-select');
+          sortSelect('bairro-select');
+
+          // event-bairro may be populated after page load; retry a few times
+          let attempts = 0;
+          function tryEvent(){
+            attempts++;
+            const eb = document.getElementById('event-bairro');
+            if (eb && eb.options.length > 0){ sortSelect('event-bairro'); return; }
+            if (attempts < 12) setTimeout(tryEvent, 150);
+          }
+          tryEvent();
+        }
+
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureSort);
+        else ensureSort();
+      })();
+    </script>
+</body>
+</html>
