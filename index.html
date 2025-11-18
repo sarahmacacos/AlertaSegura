@@ -773,7 +773,6 @@
       ⚠️ 2 alertas de “movimento baixo”</p>
     </div>
   </div>
-</div>
 
 <script>
   // base de dados dos alertas (inventei uns aleatorios)
@@ -1297,8 +1296,6 @@
         movimento_baixo: {emoji:'⚠️', label:'movimento baixo / via deserta'},
         outro: {emoji:'🔎', label:'outro'}
       };
-
-      
 
       let t = tipos[tipo] || tipos.outro;
       // If user selected 'outro', prefer custom text if provided
@@ -2238,16 +2235,46 @@
       function renderNotifications(){
         const events = getAppEvents();
         let html = '';
+        // Eventos fixos sugeridos
+        const eventosFuturos = [
+          {
+            title: 'Parada LGBT+ Londrina',
+            date: '24/11/2025',
+            time: '14:00',
+            bairro: 'Centro',
+            desc: 'Concentração na Av. Higienópolis. Evento aberto, seguro e com apoio comunitário.'
+          },
+          {
+            title: 'Festival de Mulheres na Praça',
+            date: '30/11/2025',
+            time: '16:00',
+            bairro: 'Praça Tomi Nakagawa',
+            desc: 'Música, rodas de conversa e feira de artesanato feminino.'
+          },
+          {
+            title: 'Aulão de Autodefesa',
+            date: '05/12/2025',
+            time: '18:30',
+            bairro: 'Vila Casoni',
+            desc: 'Aula gratuita de autodefesa para mulheres e pessoas LGBTQIA+.'
+          }
+        ];
+        html += '<div class="events-list-card">';
+        html += '<h4 style="margin:6px 0 8px;color:var(--amarelo)">Eventos Comunitários</h4>';
+        eventosFuturos.forEach(ev => {
+          html += `<div class="notify-list-item"><strong>${ev.title}</strong><div style="color:var(--cinza);font-size:12px">${ev.date} ${ev.time} — ${ev.bairro}</div>`;
+          if (ev.desc) html += `<div style="margin-top:6px;color:var(--branco);font-size:13px">${ev.desc}</div>`;
+          html += `</div>`;
+        });
+        // Eventos salvos pelo usuário
         if (events && events.length){
-          html += '<div class="events-list-card">';
-          html += '<h4 style="margin:6px 0 8px;color:var(--amarelo)">Eventos Comunitários</h4>';
           events.slice(0,8).forEach(ev => {
             html += `<div class="notify-list-item"><strong>${ev.title}</strong><div style="color:var(--cinza);font-size:12px">${ev.date} ${ev.time} — ${ev.bairro}</div>`;
             if (ev.desc) html += `<div style="margin-top:6px;color:var(--branco);font-size:13px">${ev.desc}</div>`;
             html += `</div>`;
           });
-          html += '</div>';
         }
+        html += '</div>';
 
         // Gather a few recent alerts (first item of each bairro)
         const alerts = [];
@@ -2281,32 +2308,25 @@
     })();
   </script>
   <script>
-    // Redirect most buttons to the donation link (opens in new tab).
+    // Redirect apenas botões de doação/assinatura para o link
     (function(){
       const donateUrl = 'https://livepix.gg/sarahmacacos';
-      const excludeIds = new Set(['btnComunidade','btnMapa','btnAlerta','btnNotifications','btnTraçar']);
-      const excludeClasses = new Set(['tab-btn','btn-outline']);
 
-      function shouldRedirect(btn){
-        if (!btn) return false;
-        if (btn.disabled) return false;
-        if (excludeIds.has(btn.id)) return false;
-        for (const cls of excludeClasses) if (btn.classList.contains(cls)) return false;
-        // keep buttons that are inside elements marked data-no-redirect
-        if (btn.closest('[data-no-redirect]')) return false;
-        return true;
-      }
-
-      document.querySelectorAll('button').forEach(btn => {
-        if (!shouldRedirect(btn)) return;
-        // Avoid adding duplicate handlers
+      document.querySelectorAll('.donation-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-          try{
-            // prevent default (so we don't run other handlers that might navigate elsewhere)
-            e.preventDefault();
-          }catch(_){ }
+          e.preventDefault();
           window.open(donateUrl, '_blank', 'noopener');
         });
+      });
+
+      // Botões "Assinar Agora" dentro dos planos
+      document.querySelectorAll('.plan-details .btn:not(.btn-outline)').forEach(btn => {
+        if (btn.textContent.includes('Assinar')) {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.open(donateUrl, '_blank', 'noopener');
+          });
+        }
       });
     })();
   </script>
@@ -2350,4 +2370,3 @@
     </script>
 </body>
 </html>
-
